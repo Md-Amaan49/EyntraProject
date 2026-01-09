@@ -11,11 +11,11 @@ import {
   Link,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { authAPI } from '../../services/api';
-import { LoginResponse } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 
 const LoginForm: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -36,23 +36,14 @@ const LoginForm: React.FC = () => {
     setError('');
 
     try {
-      const response = await authAPI.login(formData.email, formData.password);
-      const data: LoginResponse = response.data;
-
-      // Store tokens
-      localStorage.setItem('access_token', data.tokens.access);
-      localStorage.setItem('refresh_token', data.tokens.refresh);
-      localStorage.setItem('user', JSON.stringify(data.user));
-
-      // Dispatch custom event to update App state
-      window.dispatchEvent(new Event('userLoggedIn'));
-
+      await login(formData.email, formData.password);
       // Redirect to dashboard
       navigate('/dashboard');
     } catch (err: any) {
       setError(
         err.response?.data?.message || 
         err.response?.data?.detail || 
+        err.message ||
         'Login failed. Please check your credentials.'
       );
     } finally {

@@ -19,6 +19,7 @@ import {
   Pets,
   Person,
 } from '@mui/icons-material';
+import NotificationCenter from '../Notifications/NotificationCenter';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../../services/api';
 
@@ -77,6 +78,8 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
             >
               Dashboard
             </Button>
+            
+            <NotificationCenter />
             
             <Tooltip title="Profile & Settings">
               <IconButton

@@ -1,343 +1,351 @@
 """
-Dashboard models for the Enhanced Dashboard System.
-Includes models for predictions, disease records, alerts, API usage logs, and system logs.
+Dashboard analytics models for the Cattle Health System.
 """
 import uuid
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-from cattle.models import Cattle
+from decimal import Decimal
 
 
-class Prediction(models.Model):
-    """Model for storing AI prediction results from Roboflow."""
+class DashboardStats(models.Model):
+    """Aggregated dashboard statistics."""
+    
+    STAT_TYPE_CHOICES = [
+        ('cattle_owner', 'Cattle Owner Dashboard'),
+        ('veterinarian', 'Veterinarian Dashboard'),
+        ('system', 'System-wide Statistics'),
+    ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    cow = models.ForeignKey(
-        Cattle,
-        on_delete=models.CASCADE,
-        related_name='predictions',
-        help_text='The cattle that was scanned'
-    )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='predictions',
-        help_text='User who performed the scan'
+        related_name='dashboard_stats',
+        null=True,
+        blank=True
     )
-    image_url = models.TextField(help_text='URL or path to the uploaded image')
-    predicted_class = models.CharField(
-        max_length=100,
-        help_text='Disease class predicted by Roboflow (e.g., "lumpy", "healthy")'
+    
+    stat_type = models.CharField(max_length=20, choices=STAT_TYPE_CHOICES)
+    date = models.DateField(default=timezone.now)
+    
+    # General Statistics
+    total_cattle = models.IntegerField(default=0)
+    healthy_cattle = models.IntegerField(default=0)
+    sick_cattle = models.IntegerField(default=0)
+    under_treatment_cattle = models.IntegerField(default=0)
+    
+    # Health Statistics
+    total_health_assessments = models.IntegerField(default=0)
+    ai_predictions_made = models.IntegerField(default=0)
+    diseases_detected = models.IntegerField(default=0)
+    
+    # Consultation Statistics
+    total_consultations = models.IntegerField(default=0)
+    completed_consultations = models.IntegerField(default=0)
+    cancelled_consultations = models.IntegerField(default=0)
+    emergency_consultations = models.IntegerField(default=0)
+    
+    # Veterinarian-specific Statistics
+    consultation_requests_received = models.IntegerField(default=0)
+    disease_alerts_received = models.IntegerField(default=0)
+    average_response_time_minutes = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=Decimal('0.00')
     )
-    confidence = models.DecimalField(
-        max_digits=5,
+    
+    # Regional Statistics (for veterinarians)
+    regional_disease_cases = models.IntegerField(default=0)
+    regional_outbreak_alerts = models.IntegerField(default=0)
+    
+    # Financial Statistics
+    total_consultation_fees = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2, 
+        default=Decimal('0.00')
+    )
+    
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'dashboard_stats'
+        unique_together = ['user', 'stat_type', 'date']
+        ordering = ['-date']
+        indexes = [
+            models.Index(fields=['user', 'stat_type', '-date']),
+            models.Index(fields=['stat_type', '-date']),
+        ]
+    
+    def __str__(self):
+        if self.user:
+            return f"{self.user.name} - {self.get_stat_type_display()} - {self.date}"
+        return f"System - {self.get_stat_type_display()} - {self.date}"
+
+
+class HealthTrend(models.Model):
+    """Health trend data for analytics."""
+    
+    TREND_TYPE_CHOICES = [
+        ('disease_occurrence', 'Disease Occurrence'),
+        ('health_status', 'Health Status'),
+        ('treatment_effectiveness', 'Treatment Effectiveness'),
+        ('regional_outbreak', 'Regional Outbreak'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='health_trends',
+        null=True,
+        blank=True
+    )
+    
+    trend_type = models.CharField(max_length=30, choices=TREND_TYPE_CHOICES)
+    date = models.DateField()
+    
+    # Disease Information
+    disease_name = models.CharField(max_length=200, blank=True)
+    
+    # Location Information (for regional trends)
+    location_data = models.JSONField(
+        default=dict,
+        help_text='Location information for regional trends'
+    )
+    
+    # Trend Data
+    case_count = models.IntegerField(default=0)
+    recovery_count = models.IntegerField(default=0)
+    mortality_count = models.IntegerField(default=0)
+    
+    # Confidence and Severity
+    average_confidence = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=Decimal('0.00')
+    )
+    severity_distribution = models.JSONField(
+        default=dict,
+        help_text='Distribution of severity levels'
+    )
+    
+    # Additional Metrics
+    metadata = models.JSONField(
+        default=dict,
+        help_text='Additional trend metrics'
+    )
+    
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        db_table = 'health_trends'
+        unique_together = ['user', 'trend_type', 'disease_name', 'date']
+        ordering = ['-date']
+        indexes = [
+            models.Index(fields=['user', 'trend_type', '-date']),
+            models.Index(fields=['disease_name', '-date']),
+            models.Index(fields=['trend_type', '-date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.trend_type} - {self.disease_name or 'All'} - {self.date}"
+
+
+class RegionalDiseaseMap(models.Model):
+    """Regional disease mapping for veterinarian dashboards."""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Location Information
+    region_name = models.CharField(max_length=200)
+    state = models.CharField(max_length=100)
+    district = models.CharField(max_length=100, blank=True)
+    latitude = models.DecimalField(max_digits=10, decimal_places=7)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7)
+    
+    # Disease Information
+    disease_name = models.CharField(max_length=200)
+    case_count = models.IntegerField(default=0)
+    active_cases = models.IntegerField(default=0)
+    resolved_cases = models.IntegerField(default=0)
+    
+    # Severity and Risk
+    risk_level = models.CharField(
+        max_length=20,
+        choices=[
+            ('low', 'Low Risk'),
+            ('medium', 'Medium Risk'),
+            ('high', 'High Risk'),
+            ('critical', 'Critical Risk'),
+        ],
+        default='low'
+    )
+    
+    # Time Information
+    first_reported = models.DateTimeField()
+    last_updated = models.DateTimeField(auto_now=True)
+    
+    # Related Data
+    affected_cattle_count = models.IntegerField(default=0)
+    veterinarians_in_region = models.IntegerField(default=0)
+    
+    class Meta:
+        db_table = 'regional_disease_map'
+        unique_together = ['region_name', 'disease_name']
+        ordering = ['-last_updated']
+        indexes = [
+            models.Index(fields=['state', 'disease_name']),
+            models.Index(fields=['risk_level', '-last_updated']),
+            models.Index(fields=['latitude', 'longitude']),
+        ]
+    
+    def __str__(self):
+        return f"{self.disease_name} in {self.region_name} - {self.risk_level}"
+
+
+class CattleHealthMetrics(models.Model):
+    """Individual cattle health metrics for detailed analytics."""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cattle = models.ForeignKey(
+        'cattle.Cattle',
+        on_delete=models.CASCADE,
+        related_name='health_metrics'
+    )
+    
+    # Time Period
+    date = models.DateField()
+    
+    # Health Scores
+    overall_health_score = models.DecimalField(
+        max_digits=5, 
         decimal_places=2,
-        help_text='Confidence score from 0 to 100'
+        help_text='Overall health score (0-100)'
     )
-    is_healthy = models.BooleanField(
-        help_text='True if prediction indicates healthy cattle'
+    
+    # Activity Metrics
+    symptom_reports_count = models.IntegerField(default=0)
+    ai_assessments_count = models.IntegerField(default=0)
+    consultations_count = models.IntegerField(default=0)
+    
+    # Treatment Metrics
+    treatments_received = models.IntegerField(default=0)
+    treatment_compliance_score = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=Decimal('0.00')
     )
-    raw_response = models.JSONField(
-        null=True,
-        blank=True,
-        help_text='Complete raw response from Roboflow API'
+    
+    # Recovery Metrics
+    recovery_time_days = models.IntegerField(null=True, blank=True)
+    treatment_effectiveness_score = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        null=True, 
+        blank=True
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Risk Factors
+    risk_factors = models.JSONField(
+        default=list,
+        help_text='List of identified risk factors'
+    )
+    
+    # Predictions
+    predicted_health_issues = models.JSONField(
+        default=list,
+        help_text='AI-predicted potential health issues'
+    )
+    
+    created_at = models.DateTimeField(default=timezone.now)
     
     class Meta:
-        db_table = 'predictions'
-        ordering = ['-created_at']
-        verbose_name = 'Prediction'
-        verbose_name_plural = 'Predictions'
+        db_table = 'cattle_health_metrics'
+        unique_together = ['cattle', 'date']
+        ordering = ['-date']
         indexes = [
-            models.Index(fields=['-created_at']),
-            models.Index(fields=['cow']),
-            models.Index(fields=['user']),
-            models.Index(fields=['is_healthy']),
-            models.Index(fields=['predicted_class']),
+            models.Index(fields=['cattle', '-date']),
+            models.Index(fields=['overall_health_score']),
         ]
     
     def __str__(self):
-        return f"{self.cow.identification_number} - {self.predicted_class} ({self.confidence}%)"
-    
-    def save(self, *args, **kwargs):
-        """Override save to validate confidence bounds."""
-        if self.confidence < 0 or self.confidence > 100:
-            raise ValueError('Confidence must be between 0 and 100')
-        super().save(*args, **kwargs)
+        return f"{self.cattle.identification_number} - {self.date} - Score: {self.overall_health_score}"
 
 
-class DiseaseRecord(models.Model):
-    """Model for tracking confirmed disease cases."""
-    
-    SEVERITY_CHOICES = [
-        ('high', 'High'),
-        ('medium', 'Medium'),
-        ('low', 'Low'),
-    ]
+class VeterinarianPerformanceMetrics(models.Model):
+    """Performance metrics for veterinarians."""
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    cow = models.ForeignKey(
-        Cattle,
-        on_delete=models.CASCADE,
-        related_name='disease_records',
-        help_text='The affected cattle'
-    )
-    prediction = models.ForeignKey(
-        Prediction,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='disease_records',
-        help_text='Associated prediction if available'
-    )
-    disease_type = models.CharField(
-        max_length=100,
-        help_text='Type of disease detected'
-    )
-    severity = models.CharField(
-        max_length=20,
-        choices=SEVERITY_CHOICES,
-        help_text='Severity level of the disease'
-    )
-    recommendation = models.TextField(
-        help_text='Recommended actions and treatment'
-    )
-    confirmed_by_vet = models.BooleanField(
-        default=False,
-        help_text='Whether a veterinarian has confirmed the diagnosis'
-    )
-    vet_notes = models.TextField(
-        blank=True,
-        help_text='Additional notes from veterinarian'
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        db_table = 'disease_records'
-        ordering = ['-created_at']
-        verbose_name = 'Disease Record'
-        verbose_name_plural = 'Disease Records'
-        indexes = [
-            models.Index(fields=['cow']),
-            models.Index(fields=['-created_at']),
-            models.Index(fields=['disease_type']),
-            models.Index(fields=['severity']),
-            models.Index(fields=['confirmed_by_vet']),
-        ]
-    
-    def __str__(self):
-        return f"{self.cow.identification_number} - {self.disease_type} ({self.severity})"
-
-
-class Alert(models.Model):
-    """Model for user alerts and notifications."""
-    
-    ALERT_TYPES = [
-        ('disease', 'Disease Detected'),
-        ('low_confidence', 'Low Confidence'),
-        ('recognition_failure', 'Recognition Failure'),
-    ]
-    
-    SEVERITY_CHOICES = [
-        ('error', 'Error'),
-        ('warning', 'Warning'),
-        ('info', 'Info'),
-    ]
-    
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(
+    veterinarian = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='alerts',
-        help_text='User who should receive this alert'
+        related_name='performance_metrics'
     )
-    prediction = models.ForeignKey(
-        Prediction,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='alerts',
-        help_text='Associated prediction if applicable'
+    
+    # Time Period
+    date = models.DateField()
+    
+    # Consultation Metrics
+    consultations_completed = models.IntegerField(default=0)
+    average_consultation_duration = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=Decimal('0.00')
     )
-    alert_type = models.CharField(
-        max_length=50,
-        choices=ALERT_TYPES,
-        help_text='Type of alert'
+    consultation_success_rate = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=Decimal('0.00')
     )
-    severity = models.CharField(
-        max_length=20,
-        choices=SEVERITY_CHOICES,
-        help_text='Severity level of the alert'
+    
+    # Response Metrics
+    average_response_time_minutes = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=Decimal('0.00')
     )
-    message = models.TextField(
-        help_text='Alert message to display to user'
+    emergency_response_time_minutes = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=Decimal('0.00')
     )
-    is_read = models.BooleanField(
-        default=False,
-        help_text='Whether user has read this alert'
+    
+    # Quality Metrics
+    average_rating = models.DecimalField(
+        max_digits=3, 
+        decimal_places=2, 
+        default=Decimal('0.00')
     )
-    dismissed_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text='When user dismissed this alert'
+    positive_feedback_percentage = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=Decimal('0.00')
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Disease Detection Metrics
+    diseases_diagnosed = models.IntegerField(default=0)
+    diagnostic_accuracy_rate = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=Decimal('0.00')
+    )
+    
+    # Regional Impact
+    regional_cases_handled = models.IntegerField(default=0)
+    outbreak_responses = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(default=timezone.now)
     
     class Meta:
-        db_table = 'alerts'
-        ordering = ['-created_at']
-        verbose_name = 'Alert'
-        verbose_name_plural = 'Alerts'
+        db_table = 'veterinarian_performance_metrics'
+        unique_together = ['veterinarian', 'date']
+        ordering = ['-date']
         indexes = [
-            models.Index(fields=['user']),
-            models.Index(fields=['is_read']),
-            models.Index(fields=['-created_at']),
-            models.Index(fields=['alert_type']),
-            models.Index(fields=['severity']),
+            models.Index(fields=['veterinarian', '-date']),
+            models.Index(fields=['average_rating']),
         ]
     
     def __str__(self):
-        return f"{self.user.name} - {self.alert_type} ({self.severity})"
-    
-    def mark_as_read(self):
-        """Mark alert as read."""
-        self.is_read = True
-        self.save()
-    
-    def dismiss(self):
-        """Dismiss the alert."""
-        self.dismissed_at = timezone.now()
-        self.save()
-
-
-class APIUsageLog(models.Model):
-    """Model for tracking API usage and performance."""
-    
-    id = models.BigAutoField(primary_key=True)
-    endpoint = models.CharField(
-        max_length=255,
-        help_text='API endpoint that was called'
-    )
-    method = models.CharField(
-        max_length=10,
-        help_text='HTTP method (GET, POST, etc.)'
-    )
-    status_code = models.IntegerField(
-        help_text='HTTP status code returned'
-    )
-    response_time_ms = models.IntegerField(
-        help_text='Response time in milliseconds'
-    )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='api_logs',
-        help_text='User who made the request'
-    )
-    error_message = models.TextField(
-        blank=True,
-        help_text='Error message if request failed'
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'api_usage_logs'
-        ordering = ['-created_at']
-        verbose_name = 'API Usage Log'
-        verbose_name_plural = 'API Usage Logs'
-        indexes = [
-            models.Index(fields=['-created_at']),
-            models.Index(fields=['endpoint']),
-            models.Index(fields=['status_code']),
-            models.Index(fields=['user']),
-        ]
-    
-    def __str__(self):
-        return f"{self.method} {self.endpoint} - {self.status_code} ({self.response_time_ms}ms)"
-    
-    @property
-    def is_success(self):
-        """Check if request was successful (2xx status code)."""
-        return 200 <= self.status_code < 300
-    
-    @property
-    def is_error(self):
-        """Check if request resulted in error (4xx or 5xx status code)."""
-        return self.status_code >= 400
-
-
-class SystemLog(models.Model):
-    """Model for system-level logging and monitoring."""
-    
-    LEVEL_CHOICES = [
-        ('error', 'Error'),
-        ('warning', 'Warning'),
-        ('info', 'Info'),
-    ]
-    
-    CATEGORY_CHOICES = [
-        ('failed_prediction', 'Failed Prediction'),
-        ('invalid_image', 'Invalid Image'),
-        ('low_confidence', 'Low Confidence'),
-        ('api_error', 'API Error'),
-        ('database_error', 'Database Error'),
-        ('general', 'General'),
-    ]
-    
-    id = models.BigAutoField(primary_key=True)
-    level = models.CharField(
-        max_length=20,
-        choices=LEVEL_CHOICES,
-        help_text='Log level'
-    )
-    category = models.CharField(
-        max_length=50,
-        choices=CATEGORY_CHOICES,
-        help_text='Log category'
-    )
-    message = models.TextField(
-        help_text='Log message'
-    )
-    details = models.JSONField(
-        null=True,
-        blank=True,
-        help_text='Additional details as JSON'
-    )
-    prediction = models.ForeignKey(
-        Prediction,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='system_logs',
-        help_text='Associated prediction if applicable'
-    )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='system_logs',
-        help_text='Associated user if applicable'
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'system_logs'
-        ordering = ['-created_at']
-        verbose_name = 'System Log'
-        verbose_name_plural = 'System Logs'
-        indexes = [
-            models.Index(fields=['level']),
-            models.Index(fields=['category']),
-            models.Index(fields=['-created_at']),
-            models.Index(fields=['user']),
-        ]
-    
-    def __str__(self):
-        return f"[{self.level.upper()}] {self.category} - {self.message[:50]}"
+        return f"Dr. {self.veterinarian.name} - {self.date}"

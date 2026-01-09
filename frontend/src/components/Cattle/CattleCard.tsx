@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -8,6 +8,9 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  useMediaQuery,
+  useTheme,
+  Button,
 } from '@mui/material';
 import {
   MoreVert,
@@ -19,6 +22,8 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { Cattle } from '../../types';
+import EditCattleForm from './EditCattleForm';
+import QuickSymptomReport from '../Health/QuickSymptomReport';
 
 interface CattleCardProps {
   cattle: Cattle;
@@ -27,7 +32,12 @@ interface CattleCardProps {
 
 const CattleCard: React.FC<CattleCardProps> = ({ cattle, onUpdate }) => {
   const navigate = useNavigate();
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [quickReportOpen, setQuickReportOpen] = useState(false);
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -114,7 +124,7 @@ const CattleCard: React.FC<CattleCardProps> = ({ cattle, onUpdate }) => {
       >
         <MenuItem
           onClick={() => {
-            alert('Edit cattle details feature coming soon!');
+            setEditDialogOpen(true);
             handleMenuClose();
           }}
         >
@@ -123,16 +133,25 @@ const CattleCard: React.FC<CattleCardProps> = ({ cattle, onUpdate }) => {
         </MenuItem>
         <MenuItem
           onClick={() => {
-            navigate('/health/submit');
+            setQuickReportOpen(true);
             handleMenuClose();
           }}
         >
           <LocalHospital fontSize="small" sx={{ mr: 1 }} />
-          Report Symptoms
+          Quick Report
         </MenuItem>
         <MenuItem
           onClick={() => {
-            alert('Health history feature coming soon!');
+            navigate(`/health/submit?cattle=${cattle.id}`);
+            handleMenuClose();
+          }}
+        >
+          <LocalHospital fontSize="small" sx={{ mr: 1 }} />
+          Full Report
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            navigate(`/health/history/${cattle.id}`);
             handleMenuClose();
           }}
         >
@@ -140,6 +159,29 @@ const CattleCard: React.FC<CattleCardProps> = ({ cattle, onUpdate }) => {
           Health History
         </MenuItem>
       </Menu>
+
+      <EditCattleForm
+        open={editDialogOpen}
+        cattle={cattle}
+        onClose={() => setEditDialogOpen(false)}
+        onSuccess={(updatedCattle) => {
+          setEditDialogOpen(false);
+          if (onUpdate) {
+            onUpdate();
+          }
+        }}
+      />
+
+      <QuickSymptomReport
+        open={quickReportOpen}
+        cattle={cattle}
+        onClose={() => setQuickReportOpen(false)}
+        onSuccess={() => {
+          if (onUpdate) {
+            onUpdate();
+          }
+        }}
+      />
     </Card>
   );
 };

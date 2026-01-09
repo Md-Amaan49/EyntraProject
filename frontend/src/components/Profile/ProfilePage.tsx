@@ -308,7 +308,7 @@ const ProfilePage: React.FC = () => {
                 )}
               </Box>
             </Grid>
-          </Grid>
+          </Grid>             
         </CardContent>
       </Card>
 

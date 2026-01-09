@@ -122,3 +122,193 @@ export interface PredictionResponse {
   confidence: number;
   processing_time: number;
 }
+
+// New types for dashboard features
+
+export interface CattleFormData {
+  breed: string;
+  age: number;
+  identification_number: string;
+  gender: 'male' | 'female';
+  weight?: number;
+  metadata?: Record<string, any>;
+}
+
+export interface HealthEvent {
+  id: string;
+  type: 'symptom' | 'prediction' | 'treatment' | 'consultation';
+  date: string;
+  title: string;
+  description: string;
+  severity?: string;
+  veterinarian?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface HealthFilters {
+  dateRange: {
+    start: Date;
+    end: Date;
+  };
+  eventTypes: string[];
+  severity?: string[];
+}
+
+export interface Veterinarian {
+  id: string;
+  user: User;
+  license_number: string;
+  vet_type: 'government' | 'private';
+  specializations: string[];
+  years_experience: number;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  latitude?: number;
+  longitude?: number;
+  service_radius_km: number;
+  is_available: boolean;
+  is_emergency_available: boolean;
+  working_hours: Record<string, any>;
+  consultation_fees: {
+    chat: number;
+    voice: number;
+    video: number;
+    emergency: {
+      chat: number;
+      voice: number;
+      video: number;
+    };
+  };
+  qualification: string;
+  bio?: string;
+  profile_image?: string;
+  total_consultations: number;
+  average_rating: number;
+  is_verified: boolean;
+  verification_date?: string;
+  created_at: string;
+  distance_km?: number;
+}
+
+export interface VeterinarianFilters {
+  specialization?: string;
+  availability?: 'available' | 'all';
+  rating?: number;
+  maxFee?: number;
+  latitude?: number;
+  longitude?: number;
+  radius?: number;
+  search?: string;
+  page?: number;
+  page_size?: number;
+  maxDistance?: number;
+  emergencyOnly?: boolean;
+  minRating?: number;
+}
+
+export interface Consultation {
+  id: string;
+  userId: string;
+  veterinarianId: string;
+  cattleId: string;
+  type: 'chat' | 'voice' | 'video';
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  scheduledTime: Date;
+  actualStartTime?: Date;
+  actualEndTime?: Date;
+  fee: number;
+  isEmergency: boolean;
+  caseDescription: string;
+  veterinarianNotes?: string;
+  prescriptions?: Prescription[];
+  followUpDate?: Date;
+}
+
+export interface Prescription {
+  medication: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+}
+
+export interface BookingData {
+  veterinarianId: string;
+  cattleId: string;
+  consultationType: 'chat' | 'voice' | 'video';
+  scheduledTime: Date;
+  isEmergency: boolean;
+  caseDescription: string;
+  paymentMethod: string;
+}
+
+export interface ConsultationFilters {
+  status?: string;
+  type?: string;
+  dateRange?: {
+    start: Date;
+    end: Date;
+  };
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  message: string;
+  timestamp: Date;
+  type: 'text' | 'image' | 'system';
+  imageUrl?: string;
+}
+
+export interface Notification {
+  id: string;
+  type: 'reminder' | 'alert' | 'message' | 'system';
+  title: string;
+  body: string;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  isRead: boolean;
+  actionUrl?: string;
+  createdAt: Date;
+  metadata?: Record<string, any>;
+}
+
+export interface NotificationPreferences {
+  userId: string;
+  enablePush: boolean;
+  enableEmail: boolean;
+  enableSMS: boolean;
+  reminderTypes: string[];
+  alertTypes: string[];
+}
+
+export interface DashboardStatistics {
+  totalCattle: number;
+  healthyCattle: number;
+  sickCattle: number;
+  underTreatment: number;
+  recentReports: number;
+  upcomingAppointments: number;
+}
+
+export interface HealthTrend {
+  period: string;
+  healthyCount: number;
+  sickCount: number;
+  treatmentCount: number;
+  commonSymptoms: string[];
+  treatmentOutcomes: Record<string, number>;
+}
+
+export interface DateRange {
+  start: Date;
+  end: Date;
+}
+
+export interface AnalyticsFilters {
+  cattleId?: string;
+  dateRange: DateRange;
+  eventTypes?: string[];
+}

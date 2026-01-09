@@ -15,16 +15,26 @@ import {
   Chip,
   Grid,
   Paper,
+  FormControlLabel,
+  Checkbox,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   CloudUpload,
   Delete,
   Send,
   Psychology,
+  Warning,
+
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cattleAPI, healthAPI, aiAPI } from '../../services/api';
 import { Cattle, DiseasePrediction, TreatmentRecommendations } from '../../types';
+import EmergencyFlag from '../Emergency/EmergencyFlag';
+import EmergencyConfirmationDialog from '../Emergency/EmergencyConfirmationDialog';
 
 const SymptomSubmissionForm: React.FC = () => {
   const navigate = useNavigate();
@@ -37,6 +47,7 @@ const SymptomSubmissionForm: React.FC = () => {
     symptoms: '',
     severity: 'moderate',
     additional_notes: '',
+    is_emergency: false,
   });
   const [images, setImages] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
@@ -45,6 +56,7 @@ const SymptomSubmissionForm: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [predictions, setPredictions] = useState<DiseasePrediction[]>([]);
   const [treatments, setTreatments] = useState<TreatmentRecommendations | null>(null);
+  const [emergencyDialogOpen, setEmergencyDialogOpen] = useState(false);
 
   useEffect(() => {
     loadCattle();
@@ -53,7 +65,14 @@ const SymptomSubmissionForm: React.FC = () => {
   const loadCattle = async () => {
     try {
       const response = await cattleAPI.list();
-      setCattle(response.data);
+      let cattleData = response.data;
+      
+      // Handle paginated response
+      if (cattleData && typeof cattleData === 'object' && 'results' in cattleData) {
+        cattleData = cattleData.results;
+      }
+      
+      setCattle(Array.isArray(cattleData) ? cattleData : []);
     } catch (err) {
       setError('Failed to load cattle list');
     }
@@ -68,19 +87,60 @@ const SymptomSubmissionForm: React.FC = () => {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    
+    // Validate number of files
     if (images.length + files.length > 5) {
       setError('Maximum 5 images allowed');
       return;
     }
-    setImages([...images, ...files]);
+
+    // Validate file types and sizes
+    const validFiles: File[] = [];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        setError(`${file.name} is not a valid image file`);
+        return;
+      }
+      if (file.size > maxSize) {
+        setError(`${file.name} is too large (max 10MB)`);
+        return;
+      }
+      validFiles.push(file);
+    }
+
+    setImages([...images, ...validFiles]);
+    setError(''); // Clear any previous errors
   };
 
   const removeImage = (index: number) => {
     setImages(images.filter((_, i) => i !== index));
   };
 
+  const validateForm = () => {
+    if (!formData.cattle_id) {
+      setError('Please select a cattle');
+      return false;
+    }
+    if (!formData.symptoms.trim()) {
+      setError('Please describe the symptoms');
+      return false;
+    }
+    if (formData.symptoms.trim().length < 10) {
+      setError('Symptom description must be at least 10 characters');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
     setError('');
     setSuccess('');
@@ -92,16 +152,23 @@ const SymptomSubmissionForm: React.FC = () => {
         images,
       });
 
-      setSuccess('Symptoms submitted successfully!');
+      setSuccess('Symptoms submitted successfully! Getting AI analysis...');
       
-      // Get AI predictions
+      // Automatically get AI predictions after successful submission
       await getPredictions();
       
     } catch (err: any) {
-      setError(
-        err.response?.data?.message || 
-        'Failed to submit symptoms. Please try again.'
-      );
+      console.error('Symptom submission error:', err);
+      
+      if (err.response?.data?.symptoms) {
+        setError('Symptom description is too short (minimum 10 characters)');
+      } else if (err.response?.data?.cattle_id) {
+        setError('Please select a valid cattle');
+      } else if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Failed to submit symptoms. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -176,7 +243,35 @@ const SymptomSubmissionForm: React.FC = () => {
 
       {success && (
         <Alert severity="success" sx={{ mb: 3 }}>
-          {success}
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography>{success}</Typography>
+            <Box display="flex" gap={1}>
+              <Button 
+                size="small" 
+                onClick={() => {
+                  setFormData({
+                    cattle_id: '',
+                    symptoms: '',
+                    severity: 'moderate',
+                    additional_notes: '',
+                    is_emergency: false,
+                  });
+                  setImages([]);
+                  setPredictions([]);
+                  setTreatments(null);
+                  setSuccess('');
+                }}
+              >
+                Report Another
+              </Button>
+              <Button 
+                size="small" 
+                onClick={() => navigate('/dashboard')}
+              >
+                Back to Dashboard
+              </Button>
+            </Box>
+          </Box>
         </Alert>
       )}
 
@@ -193,13 +288,41 @@ const SymptomSubmissionForm: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, cattle_id: e.target.value })}
                     label="Select Cattle"
                   >
-                    {cattle.map((animal) => (
-                      <MenuItem key={animal.id} value={animal.id}>
-                        {animal.breed} - {animal.identification_number}
+                    {cattle.length === 0 ? (
+                      <MenuItem disabled>
+                        No cattle registered. Please add cattle first.
                       </MenuItem>
-                    ))}
+                    ) : (
+                      cattle.map((animal) => (
+                        <MenuItem key={animal.id} value={animal.id}>
+                          <Box>
+                            <Typography variant="body1">
+                              {animal.breed} - {animal.identification_number}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {animal.age} years old • {animal.gender} • Status: {animal.health_status.replace('_', ' ')}
+                            </Typography>
+                          </Box>
+                        </MenuItem>
+                      ))
+                    )}
                   </Select>
                 </FormControl>
+                
+                {cattle.length === 0 && (
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    <Typography variant="body2">
+                      You need to register cattle before reporting symptoms.{' '}
+                      <Button 
+                        size="small" 
+                        onClick={() => navigate('/dashboard')}
+                        sx={{ textTransform: 'none' }}
+                      >
+                        Go to Dashboard to Add Cattle
+                      </Button>
+                    </Typography>
+                  </Alert>
+                )}
               </Grid>
 
               <Grid item xs={12}>
@@ -230,6 +353,39 @@ const SymptomSubmissionForm: React.FC = () => {
                     <MenuItem value="severe">Severe</MenuItem>
                   </Select>
                 </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.is_emergency}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setEmergencyDialogOpen(true);
+                        } else {
+                          setFormData({ ...formData, is_emergency: false });
+                        }
+                      }}
+                      color="error"
+                    />
+                  }
+                  label={
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Warning color="error" fontSize="small" />
+                      <Typography color="error" fontWeight="medium">
+                        Mark as Emergency
+                      </Typography>
+                    </Box>
+                  }
+                />
+                {formData.is_emergency && (
+                  <Alert severity="error" sx={{ mt: 1 }}>
+                    <Typography variant="body2">
+                      Emergency case - This will notify all available veterinarians immediately
+                    </Typography>
+                  </Alert>
+                )}
               </Grid>
 
               <Grid item xs={12}>
@@ -266,15 +422,51 @@ const SymptomSubmissionForm: React.FC = () => {
                 </Button>
 
                 {images.length > 0 && (
-                  <Box display="flex" gap={1} flexWrap="wrap">
-                    {images.map((image, index) => (
-                      <Chip
-                        key={index}
-                        label={image.name}
-                        onDelete={() => removeImage(index)}
-                        deleteIcon={<Delete />}
-                      />
-                    ))}
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {images.length} image{images.length > 1 ? 's' : ''} selected
+                    </Typography>
+                    <Box display="flex" gap={2} flexWrap="wrap">
+                      {images.map((image, index) => (
+                        <Box key={index} sx={{ position: 'relative' }}>
+                          <Paper 
+                            sx={{ 
+                              p: 1, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 1,
+                              maxWidth: 200 
+                            }}
+                          >
+                            <img
+                              src={URL.createObjectURL(image)}
+                              alt={`Preview ${index + 1}`}
+                              style={{
+                                width: 40,
+                                height: 40,
+                                objectFit: 'cover',
+                                borderRadius: 4,
+                              }}
+                            />
+                            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                              <Typography variant="caption" noWrap>
+                                {image.name}
+                              </Typography>
+                              <Typography variant="caption" display="block" color="text.secondary">
+                                {(image.size / 1024 / 1024).toFixed(1)} MB
+                              </Typography>
+                            </Box>
+                            <Button
+                              size="small"
+                              onClick={() => removeImage(index)}
+                              sx={{ minWidth: 'auto', p: 0.5 }}
+                            >
+                              <Delete fontSize="small" />
+                            </Button>
+                          </Paper>
+                        </Box>
+                      ))}
+                    </Box>
                   </Box>
                 )}
               </Grid>
@@ -423,6 +615,50 @@ const SymptomSubmissionForm: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Emergency Confirmation Dialog */}
+      <Dialog open={emergencyDialogOpen} onClose={() => setEmergencyDialogOpen(false)}>
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Warning color="error" />
+            <Typography variant="h6" color="error">
+              Mark as Emergency Case
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>
+            By marking this as an emergency case:
+          </Typography>
+          <Box component="ul" sx={{ pl: 2, mb: 2 }}>
+            <li>All available veterinarians will be notified immediately</li>
+            <li>Your case will be prioritized in the consultation queue</li>
+            <li>Emergency consultation fees will apply</li>
+            <li>You may be able to start a consultation immediately</li>
+          </Box>
+          <Alert severity="warning">
+            <Typography variant="body2">
+              Only mark as emergency if your cattle requires immediate veterinary attention 
+              (e.g., severe injury, difficulty breathing, inability to stand, etc.)
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEmergencyDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => {
+              setFormData({ ...formData, is_emergency: true });
+              setEmergencyDialogOpen(false);
+            }}
+            color="error"
+            variant="contained"
+          >
+            Confirm Emergency
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

@@ -12,6 +12,16 @@ import Dashboard from './components/Dashboard/Dashboard';
 import SymptomSubmissionForm from './components/Health/SymptomSubmissionForm';
 import ProfilePage from './components/Profile/ProfilePage';
 import AIDiseaseDetection from './components/Health/AIDiseaseDetection';
+import EnhancedDiseaseDetection from './components/Health/EnhancedDiseaseDetection';
+import HealthHistoryPage from './components/Health/HealthHistoryPage';
+import VeterinarianBrowser from './components/Veterinarian/VeterinarianBrowser';
+import ConsultationList from './components/Consultation/ConsultationList';
+import ConsultationSession from './components/Consultation/ConsultationSession';
+import NotificationsPage from './components/Notifications/NotificationsPage';
+import NotificationPreferences from './components/Notifications/NotificationPreferences';
+
+// Context
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 // Types
 import { User } from './types';
@@ -37,8 +47,8 @@ const theme = createTheme({
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const token = localStorage.getItem('access_token');
-  return token ? <>{children}</> : <Navigate to="/login" />;
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 };
 
 // Landing Page Component
@@ -101,102 +111,132 @@ const LandingPage: React.FC = () => {
   );
 };
 
+// App Content Component (needs to be inside AuthProvider)
+const AppContent: React.FC = () => {
+  const { user } = useAuth();
+
+  return (
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Header user={user} />
+      
+      <Box sx={{ flexGrow: 1 }}>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginForm />} />
+          <Route path="/register" element={<RegisterForm />} />
+          
+          {/* Protected Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/health/submit"
+            element={
+              <ProtectedRoute>
+                <SymptomSubmissionForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/health/ai-detection"
+            element={
+              <ProtectedRoute>
+                <AIDiseaseDetection />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/health/enhanced-detection"
+            element={
+              <ProtectedRoute>
+                <EnhancedDiseaseDetection />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/health/history/:cattleId"
+            element={
+              <ProtectedRoute>
+                <HealthHistoryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/veterinarians"
+            element={
+              <ProtectedRoute>
+                <VeterinarianBrowser />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/consultations"
+            element={
+              <ProtectedRoute>
+                <ConsultationList />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/consultations/:consultationId"
+            element={
+              <ProtectedRoute>
+                <ConsultationSession />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications/settings"
+            element={
+              <ProtectedRoute>
+                <NotificationPreferences />
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* Redirect to dashboard if logged in, otherwise to landing */}
+          <Route
+            path="*"
+            element={
+              user ? <Navigate to="/dashboard" /> : <Navigate to="/" />
+            }
+          />
+        </Routes>
+      </Box>
+    </Box>
+  );
+};
+
 function App() {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    // Check if user is logged in
-    loadUserFromStorage();
-    
-    // Listen for storage changes (login/logout from other tabs)
-    window.addEventListener('storage', loadUserFromStorage);
-    
-    // Listen for custom login event
-    window.addEventListener('userLoggedIn', loadUserFromStorage);
-    
-    return () => {
-      window.removeEventListener('storage', loadUserFromStorage);
-      window.removeEventListener('userLoggedIn', loadUserFromStorage);
-    };
-  }, []);
-
-  const loadUserFromStorage = () => {
-    const token = localStorage.getItem('access_token');
-    const userData = localStorage.getItem('user');
-    
-    if (token && userData) {
-      try {
-        setUser(JSON.parse(userData));
-      } catch (err) {
-        // Invalid user data, clear storage
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user');
-        setUser(null);
-      }
-    } else {
-      setUser(null);
-    }
-  };
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
-        <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-          <Header user={user} />
-          
-          <Box sx={{ flexGrow: 1 }}>
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<LoginForm />} />
-              <Route path="/register" element={<RegisterForm />} />
-              
-              {/* Protected Routes */}
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <ProfilePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/health/submit"
-                element={
-                  <ProtectedRoute>
-                    <SymptomSubmissionForm />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/health/ai-detection"
-                element={
-                  <ProtectedRoute>
-                    <AIDiseaseDetection />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* Redirect to dashboard if logged in, otherwise to landing */}
-              <Route
-                path="*"
-                element={
-                  user ? <Navigate to="/dashboard" /> : <Navigate to="/" />
-                }
-              />
-            </Routes>
-          </Box>
-        </Box>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
