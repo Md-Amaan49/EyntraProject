@@ -33,7 +33,7 @@ services:
     staticPublishPath: ./frontend/build
     envVars:
       - key: NODE_VERSION
-        value: "18.17.0"
+        value: "20.11.0"
       - key: REACT_APP_API_URL
         value: https://cattle-health-backend.onrender.com/api
       - key: REACT_APP_AI_SERVICE_URL

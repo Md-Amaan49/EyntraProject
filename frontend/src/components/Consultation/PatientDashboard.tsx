@@ -20,7 +20,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondary,
   Divider,
   Avatar,
   IconButton,
