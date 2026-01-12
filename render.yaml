@@ -26,8 +26,9 @@ services:
         value: "https://cattle-health-frontend.onrender.com,http://localhost:3000"
 
   # Frontend Service
-  - type: static
+  - type: web
     name: cattle-health-frontend
+    env: static
     plan: free
     buildCommand: "cd frontend && npm ci && npm run build"
     staticPublishPath: ./frontend/build
