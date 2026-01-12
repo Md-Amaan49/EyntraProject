@@ -14,7 +14,8 @@ from .serializers import (
     UserLoginSerializer,
     UserSerializer,
     UserUpdateSerializer,
-    PasswordChangeSerializer
+    PasswordChangeSerializer,
+    NearbyVeterinarianSerializer
 )
 
 User = get_user_model()
@@ -217,3 +218,36 @@ def refresh_token(request):
         return Response({
             'error': 'Invalid or expired refresh token'
         }, status=status.HTTP_401_UNAUTHORIZED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def nearby_veterinarians(request):
+    """
+    Get nearby veterinarians based on user's location.
+    
+    GET /api/users/nearby-veterinarians
+    """
+    user = request.user
+    
+    if user.role != 'owner':
+        return Response({
+            'error': 'Only cattle owners can search for veterinarians'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    if not user.state:
+        return Response({
+            'error': 'Please update your location in profile to find nearby veterinarians'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Get nearby veterinarians
+    veterinarians = user.get_nearby_veterinarians()
+    
+    # Serialize the data
+    serializer = NearbyVeterinarianSerializer(veterinarians, many=True)
+    
+    return Response({
+        'message': f'Found {veterinarians.count()} veterinarians near your location',
+        'user_location': user.location_display,
+        'veterinarians': serializer.data
+    }, status=status.HTTP_200_OK)

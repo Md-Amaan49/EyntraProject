@@ -13,18 +13,20 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Grid,
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Chat,
   Videocam,
   CallEnd,
-  Description,
+  Pets,
 } from '@mui/icons-material';
 import { consultationAPI } from '../../services/api';
 import { Consultation } from '../../types';
 import ChatInterface from './ChatInterface';
 import VideoCallInterface from './VideoCallInterface';
+import CattleInfoPanel from './CattleInfoPanel';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -179,49 +181,79 @@ const ConsultationSession: React.FC = () => {
 
       {/* Main Content */}
       <Box sx={{ flexGrow: 1, mx: 2, mb: 2 }}>
-        {consultation.type === 'video' ? (
-          <Paper sx={{ height: '100%' }}>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs value={activeTab} onChange={handleTabChange}>
-                <Tab
-                  icon={<Videocam />}
-                  label="Video Call"
-                  id="consultation-tab-0"
-                  aria-controls="consultation-tabpanel-0"
-                />
-                <Tab
-                  icon={<Chat />}
-                  label="Chat"
-                  id="consultation-tab-1"
-                  aria-controls="consultation-tabpanel-1"
-                />
-              </Tabs>
-            </Box>
-
-            <TabPanel value={activeTab} index={0}>
-              <VideoCallInterface
-                consultation={consultation}
-                onCallEnd={handleEndSession}
-                onConnectionChange={handleConnectionChange}
-              />
-            </TabPanel>
-
-            <TabPanel value={activeTab} index={1}>
-              <ChatInterface
-                consultation={consultation}
-                onSessionEnd={handleEndSession}
-              />
-            </TabPanel>
-          </Paper>
-        ) : (
-          // Chat-only consultation
-          <Paper sx={{ height: '100%' }}>
-            <ChatInterface
-              consultation={consultation}
-              onSessionEnd={handleEndSession}
+        <Grid container spacing={2} sx={{ height: '100%' }}>
+          {/* Cattle Information Panel */}
+          <Grid item xs={12} md={3}>
+            <CattleInfoPanel 
+              cattleId={consultation.cattleId} 
+              showOwnerInfo={true}
+              compact={true}
             />
-          </Paper>
-        )}
+          </Grid>
+
+          {/* Consultation Interface */}
+          <Grid item xs={12} md={9}>
+            {consultation.type === 'video' ? (
+              <Paper sx={{ height: '100%' }}>
+                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                  <Tabs value={activeTab} onChange={handleTabChange}>
+                    <Tab
+                      icon={<Videocam />}
+                      label="Video Call"
+                      id="consultation-tab-0"
+                      aria-controls="consultation-tabpanel-0"
+                    />
+                    <Tab
+                      icon={<Chat />}
+                      label="Chat"
+                      id="consultation-tab-1"
+                      aria-controls="consultation-tabpanel-1"
+                    />
+                    <Tab
+                      icon={<Pets />}
+                      label="Cattle Info"
+                      id="consultation-tab-2"
+                      aria-controls="consultation-tabpanel-2"
+                    />
+                  </Tabs>
+                </Box>
+
+                <TabPanel value={activeTab} index={0}>
+                  <VideoCallInterface
+                    consultation={consultation}
+                    onCallEnd={handleEndSession}
+                    onConnectionChange={handleConnectionChange}
+                  />
+                </TabPanel>
+
+                <TabPanel value={activeTab} index={1}>
+                  <ChatInterface
+                    consultation={consultation}
+                    onSessionEnd={handleEndSession}
+                  />
+                </TabPanel>
+
+                <TabPanel value={activeTab} index={2}>
+                  <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+                    <CattleInfoPanel 
+                      cattleId={consultation.cattleId} 
+                      showOwnerInfo={true}
+                      compact={false}
+                    />
+                  </Box>
+                </TabPanel>
+              </Paper>
+            ) : (
+              // Chat-only consultation
+              <Paper sx={{ height: '100%' }}>
+                <ChatInterface
+                  consultation={consultation}
+                  onSessionEnd={handleEndSession}
+                />
+              </Paper>
+            )}
+          </Grid>
+        </Grid>
       </Box>
 
       {/* End Session Dialog */}

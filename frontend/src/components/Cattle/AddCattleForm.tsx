@@ -14,8 +14,11 @@ import {
   Alert,
   CircularProgress,
   Grid,
+  Typography,
+  Divider,
 } from '@mui/material';
 import { cattleAPI } from '../../services/api';
+import ImageUpload from '../Common/ImageUpload';
 import type { CattleFormData, Cattle } from '../../types';
 
 interface AddCattleFormProps {
@@ -32,6 +35,7 @@ const AddCattleForm: React.FC<AddCattleFormProps> = ({ open, onClose, onSuccess 
     gender: 'female',
     weight: undefined,
     metadata: {},
+    image: null,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -98,7 +102,9 @@ const AddCattleForm: React.FC<AddCattleFormProps> = ({ open, onClose, onSuccess 
       if (error.response?.data?.error) {
         setSubmitError(error.response.data.error);
       } else if (error.response?.data?.identification_number) {
-        setSubmitError('This identification number is already in use');
+        setSubmitError('You already have cattle with this identification number.');
+      } else if (error.response?.data?.image) {
+        setSubmitError(`Image error: ${error.response.data.image[0]}`);
       } else {
         setSubmitError('Failed to create cattle profile. Please try again.');
       }
@@ -115,6 +121,7 @@ const AddCattleForm: React.FC<AddCattleFormProps> = ({ open, onClose, onSuccess 
       gender: 'female',
       weight: undefined,
       metadata: {},
+      image: null,
     });
     setErrors({});
     setSubmitError('');
@@ -198,6 +205,24 @@ const AddCattleForm: React.FC<AddCattleFormProps> = ({ open, onClose, onSuccess 
               />
             </Grid>
           </Grid>
+
+          <Divider sx={{ my: 3 }} />
+
+          <Typography variant="h6" gutterBottom>
+            Cattle Image (Optional)
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Adding a photo helps veterinarians identify your cattle during consultations.
+          </Typography>
+
+          <ImageUpload
+            value={formData.image}
+            onChange={(file) => handleInputChange('image', file)}
+            onError={(error) => setSubmitError(error)}
+            label="Upload Cattle Photo"
+            helperText="JPEG, PNG, WebP formats supported. Max 5MB. This is optional."
+            disabled={loading}
+          />
         </Box>
       </DialogContent>
 

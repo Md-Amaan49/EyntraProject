@@ -26,6 +26,9 @@
 
 - [-] 2. Implement complete consultation booking workflow
 
+
+
+
   - Fix BookingForm component to handle time slot selection and fee calculation
   - Integrate payment processing with proper error handling
   - Implement emergency consultation priority handling
@@ -279,7 +282,134 @@
   - **Property 37: Follow-up scheduling automation**
   - **Validates: Requirements 10.5**
 
-- [ ] 13. Implement backend API enhancements
+- [-] 13. Implement symptom reporting and veterinary notification system
+
+  - Create symptom report submission workflow
+  - Build automatic veterinarian identification and notification system
+  - Implement emergency case prioritization and routing
+  - Add consultation request management for veterinarians
+  - Create patient management dashboard for accepted cases
+  - Build dashboard statistics and counters
+  - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 12.1, 12.2, 12.3, 12.4, 12.5, 13.1, 13.2, 13.3, 13.4, 13.5, 14.1, 14.2, 14.3, 14.4, 14.5_
+
+
+
+- [ ] 13.1 Create backend models for symptom notification workflow
+  - Add SymptomReport model with cattle, owner, and symptom details
+  - Create ConsultationRequest model for veterinary notifications
+  - Implement VeterinarianResponse model for request handling
+  - Add VeterinarianPatient model for patient management
+  - Create dashboard statistics models
+  - _Requirements: 11.1, 12.1, 13.1, 14.1_
+
+- [ ] 13.2 Write property test for symptom report veterinarian identification
+  - **Property 38: Symptom report veterinarian identification accuracy**
+  - **Validates: Requirements 11.1**
+
+- [ ] 13.3 Write property test for symptom notification content
+  - **Property 39: Symptom notification content completeness**
+  - **Validates: Requirements 11.2**
+
+- [ ] 13.4 Write property test for emergency case priority
+  - **Property 40: Emergency case priority notification**
+  - **Validates: Requirements 11.3**
+
+- [ ] 13.5 Write property test for notification display completeness
+  - **Property 41: Veterinarian notification display completeness**
+  - **Validates: Requirements 11.4**
+
+- [ ] 13.6 Write property test for search radius expansion
+  - **Property 42: Veterinarian search radius expansion**
+  - **Validates: Requirements 11.5**
+
+- [ ] 13.7 Write property test for consultation request actions
+  - **Property 43: Consultation request action options**
+  - **Validates: Requirements 12.1**
+
+- [ ] 13.8 Write property test for request acceptance workflow
+  - **Property 44: Consultation request acceptance workflow**
+  - **Validates: Requirements 12.2**
+
+- [ ] 13.9 Write property test for request decline workflow
+  - **Property 45: Consultation request decline workflow**
+  - **Validates: Requirements 12.3**
+
+- [ ] 13.10 Write property test for first responder assignment
+  - **Property 46: First responder assignment logic**
+  - **Validates: Requirements 12.4**
+
+- [ ] 13.11 Write property test for information request workflow
+  - **Property 47: Information request workflow**
+  - **Validates: Requirements 12.5**
+
+- [ ] 13.12 Write property test for patient list addition
+  - **Property 48: Patient list addition completeness**
+  - **Validates: Requirements 13.1**
+
+- [ ] 13.13 Write property test for patient dashboard information
+  - **Property 49: Patient dashboard information completeness**
+  - **Validates: Requirements 13.2**
+
+- [ ] 13.14 Write property test for patient management functionality
+  - **Property 50: Patient management functionality**
+  - **Validates: Requirements 13.3**
+
+- [ ] 13.15 Write property test for patient lifecycle management
+  - **Property 51: Patient lifecycle management**
+  - **Validates: Requirements 13.4**
+
+- [ ] 13.16 Write property test for patient detail information
+  - **Property 52: Patient detail information completeness**
+  - **Validates: Requirements 13.5**
+
+- [ ] 13.17 Write property test for dashboard pending requests counter
+  - **Property 53: Dashboard pending requests counter accuracy**
+  - **Validates: Requirements 14.1**
+
+- [ ] 13.18 Write property test for dashboard statistics calculation
+  - **Property 54: Dashboard statistics calculation accuracy**
+  - **Validates: Requirements 14.2**
+
+- [ ] 13.19 Write property test for real-time counter updates
+  - **Property 55: Real-time counter updates**
+  - **Validates: Requirements 14.3**
+
+- [ ] 13.20 Write property test for status change counter updates
+  - **Property 56: Status change counter updates**
+  - **Validates: Requirements 14.4**
+
+- [ ] 13.21 Write property test for performance report calculation
+  - **Property 57: Performance report calculation accuracy**
+
+
+  - **Validates: Requirements 14.5**
+
+- [ ] 14. Implement backend API endpoints for symptom notification
+  - Create symptom report submission API
+  - Build veterinarian notification service
+  - Implement consultation request management API
+
+
+  - Add patient management endpoints
+  - Create dashboard statistics API
+  - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 12.1, 12.2, 12.3, 12.4, 12.5, 13.1, 13.2, 13.3, 13.4, 13.5, 14.1, 14.2, 14.3, 14.4, 14.5_
+
+- [ ] 15. Build frontend components for symptom notification workflow
+  - Create enhanced symptom reporting form with emergency flagging
+  - Build veterinary notification center for request management
+  - Implement patient dashboard for veterinarians
+  - Add dashboard statistics and counters
+  - Create real-time notification system
+  - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 12.1, 12.2, 12.3, 12.4, 12.5, 13.1, 13.2, 13.3, 13.4, 13.5, 14.1, 14.2, 14.3, 14.4, 14.5_
+
+- [ ] 16. Checkpoint - Test symptom notification workflow
+  - Ensure all symptom notification tests pass
+  - Test end-to-end workflow from symptom report to patient management
+  - Verify emergency case prioritization
+  - Test dashboard statistics accuracy
+  - Ask the user if questions arise
+
+- [ ] 17. Implement backend API enhancements
   - Fix and enhance consultation API endpoints
   - Implement geographic search optimization
   - Add real-time WebSocket support

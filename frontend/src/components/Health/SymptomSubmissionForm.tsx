@@ -28,10 +28,11 @@ import {
   Send,
   Psychology,
   Warning,
-
+  LocalHospital,
+  CheckCircle,
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { cattleAPI, healthAPI, aiAPI } from '../../services/api';
+import { cattleAPI, healthAPI, aiAPI, consultationAPI } from '../../services/api';
 import { Cattle, DiseasePrediction, TreatmentRecommendations } from '../../types';
 import EmergencyFlag from '../Emergency/EmergencyFlag';
 import EmergencyConfirmationDialog from '../Emergency/EmergencyConfirmationDialog';
@@ -57,6 +58,8 @@ const SymptomSubmissionForm: React.FC = () => {
   const [predictions, setPredictions] = useState<DiseasePrediction[]>([]);
   const [treatments, setTreatments] = useState<TreatmentRecommendations | null>(null);
   const [emergencyDialogOpen, setEmergencyDialogOpen] = useState(false);
+  const [notificationResult, setNotificationResult] = useState<any>(null);
+  const [showVetNotification, setShowVetNotification] = useState(false);
 
   useEffect(() => {
     loadCattle();
@@ -146,16 +149,87 @@ const SymptomSubmissionForm: React.FC = () => {
     setSuccess('');
 
     try {
-      // Submit symptoms to backend
-      const response = await healthAPI.submitSymptoms({
-        ...formData,
-        images,
-      });
-
-      setSuccess('Symptoms submitted successfully! Getting AI analysis...');
+      // Get selected cattle for location information
+      const selectedCattle = cattle.find(c => c.id === formData.cattle_id);
       
-      // Automatically get AI predictions after successful submission
-      await getPredictions();
+      // Get AI predictions first if we have symptoms
+      let aiPredictions: DiseasePrediction[] = [];
+      if (formData.symptoms.trim()) {
+        try {
+          setPredicting(true);
+          
+          // Convert images to base64 for AI service
+          const imagePromises = images.map(image => {
+            return new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.readAsDataURL(image);
+            });
+          });
+          const imageBase64 = await Promise.all(imagePromises);
+
+          // Get AI predictions
+          const aiResponse = await aiAPI.predict({
+            symptoms: formData.symptoms,
+            images: imageBase64,
+            cattle_metadata: selectedCattle ? {
+              breed: selectedCattle.breed,
+              age: selectedCattle.age,
+              gender: selectedCattle.gender,
+              weight: selectedCattle.weight,
+            } : undefined,
+          });
+
+          aiPredictions = aiResponse.data.predictions || [];
+          setPredictions(aiPredictions);
+        } catch (aiErr) {
+          console.error('AI prediction error:', aiErr);
+          // Continue without AI predictions
+        } finally {
+          setPredicting(false);
+        }
+      }
+
+      // Submit symptom report with veterinary notification
+      const symptomReportData = {
+        cattle_id: formData.cattle_id,
+        symptoms: formData.symptoms,
+        severity: formData.severity,
+        is_emergency: formData.is_emergency,
+        ai_predictions: aiPredictions,
+        location: {
+          // Use cattle owner's location or default coordinates
+          latitude: 12.9716, // Default to Bangalore coordinates
+          longitude: 77.5946,
+          address: 'Location not specified'
+        }
+      };
+
+      const response = await consultationAPI.submitSymptomReport(symptomReportData);
+      
+      setNotificationResult(response.data);
+      setShowVetNotification(true);
+      setSuccess('Symptoms submitted successfully! Veterinarians have been notified.');
+      
+      // Get treatment recommendations if we have predictions
+      if (aiPredictions.length > 0) {
+        try {
+          const treatmentResponse = await healthAPI.getTreatmentRecommendations({
+            disease_predictions: aiPredictions,
+            cattle_metadata: selectedCattle ? {
+              breed: selectedCattle.breed,
+              age: selectedCattle.age,
+              gender: selectedCattle.gender,
+              weight: selectedCattle.weight,
+            } : undefined,
+            preference: 'balanced',
+          });
+
+          setTreatments(treatmentResponse.data.recommendations);
+        } catch (treatmentErr) {
+          console.error('Treatment recommendation error:', treatmentErr);
+        }
+      }
       
     } catch (err: any) {
       console.error('Symptom submission error:', err);
@@ -259,6 +333,8 @@ const SymptomSubmissionForm: React.FC = () => {
                   setImages([]);
                   setPredictions([]);
                   setTreatments(null);
+                  setNotificationResult(null);
+                  setShowVetNotification(false);
                   setSuccess('');
                 }}
               >
@@ -273,6 +349,78 @@ const SymptomSubmissionForm: React.FC = () => {
             </Box>
           </Box>
         </Alert>
+      )}
+
+      {/* Veterinary Notification Result */}
+      {showVetNotification && notificationResult && (
+        <Card sx={{ mb: 3, border: '2px solid', borderColor: 'success.main' }}>
+          <CardContent>
+            <Box display="flex" alignItems="center" gap={2} mb={2}>
+              <LocalHospital color="success" />
+              <Typography variant="h6" color="success.main">
+                Veterinarians Notified Successfully
+              </Typography>
+            </Box>
+            
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Paper sx={{ p: 2, bgcolor: 'success.50' }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Case Priority
+                  </Typography>
+                  <Chip 
+                    label={notificationResult.consultation_request?.priority?.toUpperCase() || 'NORMAL'}
+                    color={
+                      notificationResult.consultation_request?.priority === 'emergency' ? 'error' :
+                      notificationResult.consultation_request?.priority === 'urgent' ? 'warning' : 'success'
+                    }
+                    icon={notificationResult.consultation_request?.priority === 'emergency' ? <Warning /> : <CheckCircle />}
+                  />
+                </Paper>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <Paper sx={{ p: 2, bgcolor: 'info.50' }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Request Status
+                  </Typography>
+                  <Typography variant="body2">
+                    {notificationResult.consultation_request?.status === 'pending' ? 
+                      'Waiting for veterinarian response' : 
+                      notificationResult.consultation_request?.status
+                    }
+                  </Typography>
+                </Paper>
+              </Grid>
+            </Grid>
+
+            <Alert severity="info" sx={{ mt: 2 }}>
+              <Typography variant="body2">
+                {formData.is_emergency ? 
+                  'Emergency veterinarians have been notified and will respond as soon as possible. You may receive a call or message shortly.' :
+                  'Nearby veterinarians have been notified of your case. You will be contacted when a veterinarian accepts your consultation request.'
+                }
+              </Typography>
+            </Alert>
+
+            <Box display="flex" gap={2} mt={2}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => navigate('/consultations')}
+              >
+                View My Requests
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => navigate('/veterinarians')}
+              >
+                Find Veterinarians
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
       )}
 
       <Card sx={{ mb: 3 }}>

@@ -36,7 +36,7 @@ import {
   Verified,
 } from '@mui/icons-material';
 import EmergencyConfirmationDialog from '../Emergency/EmergencyConfirmationDialog';
-import { veterinarianAPI } from '../../services/api';
+import { veterinarianAPI, authAPI } from '../../services/api';
 import type { Veterinarian, VeterinarianFilters } from '../../types';
 import VeterinarianCard from './VeterinarianCard';
 
@@ -78,6 +78,9 @@ const VeterinarianBrowser: React.FC<VeterinarianBrowserProps> = ({
   } | null>(null);
   const [locationError, setLocationError] = useState('');
   const [locationLoading, setLocationLoading] = useState(false);
+  const [nearbyVeterinarians, setNearbyVeterinarians] = useState<any[]>([]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [showNearby, setShowNearby] = useState(true);
 
   // Available specializations
   const specializations = [
@@ -97,6 +100,8 @@ const VeterinarianBrowser: React.FC<VeterinarianBrowserProps> = ({
     getUserLocation();
     // Load veterinarians with initial data
     loadVeterinarians();
+    // Load nearby veterinarians based on user's registered location
+    loadNearbyVeterinarians();
   }, []);
 
   useEffect(() => {
@@ -242,6 +247,20 @@ const VeterinarianBrowser: React.FC<VeterinarianBrowserProps> = ({
     }
   };
 
+  const loadNearbyVeterinarians = async () => {
+    try {
+      setNearbyLoading(true);
+      const response = await authAPI.getNearbyVeterinarians();
+      setNearbyVeterinarians(response.data.veterinarians || []);
+    } catch (err: any) {
+      console.error('Error loading nearby veterinarians:', err);
+      // Don't show error for nearby vets, just hide the section
+      setShowNearby(false);
+    } finally {
+      setNearbyLoading(false);
+    }
+  };
+
   const handleSearch = () => {
     setPage(1);
     loadVeterinarians();
@@ -339,6 +358,98 @@ const VeterinarianBrowser: React.FC<VeterinarianBrowserProps> = ({
             Emergency fees apply.
           </Typography>
         </Alert>
+      )}
+
+      {/* Nearby Veterinarians Section */}
+      {showNearby && nearbyVeterinarians.length > 0 && (
+        <Paper sx={{ p: 3, mb: 3, bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.200' }}>
+          <Box display="flex" alignItems="center" gap={2} mb={2}>
+            <LocationOn color="primary" />
+            <Typography variant="h6" color="primary">
+              Veterinarians Near You
+            </Typography>
+            <Chip 
+              label={`${nearbyVeterinarians.length} found`} 
+              color="primary" 
+              size="small" 
+            />
+          </Box>
+          
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Based on your registered location, here are veterinarians in your area:
+          </Typography>
+
+          {nearbyLoading ? (
+            <Box display="flex" justifyContent="center" py={2}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : (
+            <Grid container spacing={2}>
+              {nearbyVeterinarians.slice(0, 3).map((vet) => (
+                <Grid item xs={12} sm={6} md={4} key={vet.id}>
+                  <Card 
+                    sx={{ 
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: 3,
+                      }
+                    }}
+                    onClick={() => onSelectVeterinarian?.(vet)}
+                  >
+                    <CardContent sx={{ p: 2 }}>
+                      <Box display="flex" alignItems="center" gap={1} mb={1}>
+                        <Verified color="primary" fontSize="small" />
+                        <Typography variant="subtitle2" fontWeight="bold">
+                          {vet.name}
+                        </Typography>
+                      </Box>
+                      
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        📍 {vet.location_display}
+                      </Typography>
+                      
+                      <Typography variant="body2" color="text.secondary">
+                        📞 {vet.phone}
+                      </Typography>
+                      
+                      <Button 
+                        size="small" 
+                        variant="outlined" 
+                        fullWidth 
+                        sx={{ mt: 1 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectVeterinarian?.(vet);
+                        }}
+                      >
+                        Contact
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+
+          {nearbyVeterinarians.length > 3 && (
+            <Box textAlign="center" mt={2}>
+              <Button 
+                variant="text" 
+                color="primary"
+                onClick={() => {
+                  // Scroll to the main veterinarians list
+                  document.getElementById('veterinarians-list')?.scrollIntoView({ 
+                    behavior: 'smooth' 
+                  });
+                }}
+              >
+                View All {nearbyVeterinarians.length} Nearby Veterinarians
+              </Button>
+            </Box>
+          )}
+        </Paper>
       )}
 
       {error && (
@@ -598,7 +709,7 @@ const VeterinarianBrowser: React.FC<VeterinarianBrowserProps> = ({
             </Typography>
           </Box>
 
-          <Grid container spacing={3}>
+          <Grid container spacing={3} id="veterinarians-list">
             {veterinarians.map((vet) => (
               <Grid item xs={12} md={6} lg={4} key={vet.id}>
                 <VeterinarianCard

@@ -446,3 +446,538 @@ class VeterinarianNotification(models.Model):
         self.status = 'acknowledged'
         self.acknowledged_at = timezone.now()
         self.save()
+
+
+class SymptomReport(models.Model):
+    """Model for cattle symptom reports that trigger veterinary notifications."""
+    
+    SEVERITY_CHOICES = [
+        ('mild', 'Mild'),
+        ('moderate', 'Moderate'),
+        ('severe', 'Severe'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('submitted', 'Submitted'),
+        ('notified', 'Veterinarians Notified'),
+        ('accepted', 'Accepted by Veterinarian'),
+        ('completed', 'Completed'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Basic Information
+    cattle = models.ForeignKey(
+        'cattle.Cattle',
+        on_delete=models.CASCADE,
+        related_name='symptom_reports'
+    )
+    cattle_owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='symptom_reports'
+    )
+    
+    # Symptom Details
+    symptoms = models.TextField(
+        help_text='Detailed description of observable symptoms'
+    )
+    severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='moderate')
+    is_emergency = models.BooleanField(default=False)
+    
+    # AI Predictions
+    ai_predictions = models.JSONField(
+        default=list,
+        help_text='AI disease predictions for this symptom report'
+    )
+    
+    # Location Information
+    location = models.JSONField(
+        default=dict,
+        help_text='Location coordinates and address where symptoms were observed'
+    )
+    
+    # Status and Timestamps
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='submitted')
+    reported_at = models.DateTimeField(default=timezone.now)
+    
+    # Related Objects
+    symptom_entry = models.ForeignKey(
+        'health.SymptomEntry',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='symptom_reports'
+    )
+    
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'symptom_reports'
+        ordering = ['-reported_at']
+        indexes = [
+            models.Index(fields=['cattle_owner', '-reported_at']),
+            models.Index(fields=['status', 'is_emergency']),
+            models.Index(fields=['severity']),
+        ]
+    
+    def __str__(self):
+        return f"Symptom Report {self.id} - {self.cattle.identification_number}"
+
+
+class ConsultationRequest(models.Model):
+    """Model for consultation requests sent to veterinarians from symptom reports."""
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('expired', 'Expired'),
+    ]
+    
+    PRIORITY_CHOICES = [
+        ('normal', 'Normal'),
+        ('urgent', 'Urgent'),
+        ('emergency', 'Emergency'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Related Objects
+    symptom_report = models.ForeignKey(
+        SymptomReport,
+        on_delete=models.CASCADE,
+        related_name='consultation_requests'
+    )
+    cattle = models.ForeignKey(
+        'cattle.Cattle',
+        on_delete=models.CASCADE,
+        related_name='consultation_requests'
+    )
+    cattle_owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='consultation_requests_as_owner'
+    )
+    
+    # Request Details
+    requested_veterinarians = models.JSONField(
+        default=list,
+        help_text='List of veterinarian IDs who were notified'
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='normal')
+    
+    # Assignment
+    assigned_veterinarian = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_consultation_requests'
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField(
+        help_text='When this request expires if not accepted'
+    )
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    
+    # Tracking
+    declined_by = models.JSONField(
+        default=list,
+        help_text='List of veterinarian IDs who declined this request'
+    )
+    
+    class Meta:
+        db_table = 'consultation_requests'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'priority']),
+            models.Index(fields=['cattle_owner', '-created_at']),
+            models.Index(fields=['assigned_veterinarian', 'status']),
+            models.Index(fields=['expires_at']),
+        ]
+    
+    def __str__(self):
+        return f"Consultation Request {self.id} - {self.cattle.identification_number}"
+    
+    def is_expired(self):
+        """Check if the request has expired."""
+        return timezone.now() > self.expires_at
+    
+    def accept_by_veterinarian(self, veterinarian):
+        """Accept the request by a veterinarian."""
+        if self.status == 'pending' and not self.is_expired():
+            self.status = 'accepted'
+            self.assigned_veterinarian = veterinarian
+            self.accepted_at = timezone.now()
+            self.save()
+            return True
+        return False
+    
+    def decline_by_veterinarian(self, veterinarian):
+        """Decline the request by a veterinarian."""
+        if self.status == 'pending' and veterinarian.id not in self.declined_by:
+            declined_list = self.declined_by.copy()
+            declined_list.append(str(veterinarian.id))
+            self.declined_by = declined_list
+            self.save()
+            return True
+        return False
+
+
+class VeterinarianResponse(models.Model):
+    """Model for tracking veterinarian responses to consultation requests."""
+    
+    ACTION_CHOICES = [
+        ('accept', 'Accept'),
+        ('decline', 'Decline'),
+        ('request_info', 'Request More Information'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Related Objects
+    veterinarian = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='consultation_responses'
+    )
+    consultation_request = models.ForeignKey(
+        ConsultationRequest,
+        on_delete=models.CASCADE,
+        related_name='responses'
+    )
+    
+    # Response Details
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    message = models.TextField(blank=True, help_text='Optional message from veterinarian')
+    
+    # Timing
+    response_time = models.IntegerField(
+        help_text='Response time in seconds from notification to response'
+    )
+    responded_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        db_table = 'veterinarian_responses'
+        unique_together = ['veterinarian', 'consultation_request']
+        ordering = ['-responded_at']
+        indexes = [
+            models.Index(fields=['veterinarian', '-responded_at']),
+            models.Index(fields=['consultation_request', 'action']),
+        ]
+    
+    def __str__(self):
+        return f"Response from Dr. {self.veterinarian.name} - {self.action}"
+
+
+class VeterinarianNotificationRequest(models.Model):
+    """Model for tracking notifications sent to veterinarians about consultation requests."""
+    
+    STATUS_CHOICES = [
+        ('sent', 'Sent'),
+        ('delivered', 'Delivered'),
+        ('read', 'Read'),
+        ('responded', 'Responded'),
+    ]
+    
+    CHANNEL_CHOICES = [
+        ('app', 'In-App Notification'),
+        ('sms', 'SMS'),
+        ('email', 'Email'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Related Objects
+    veterinarian = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notification_requests'
+    )
+    consultation_request = models.ForeignKey(
+        ConsultationRequest,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    
+    # Notification Details
+    notification_channels = models.JSONField(
+        default=list,
+        help_text='List of channels used for notification'
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='sent')
+    distance_km = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text='Distance from veterinarian to cattle location'
+    )
+    
+    # Timestamps
+    sent_at = models.DateTimeField(default=timezone.now)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'veterinarian_notification_requests'
+        unique_together = ['veterinarian', 'consultation_request']
+        ordering = ['-sent_at']
+        indexes = [
+            models.Index(fields=['veterinarian', 'status']),
+            models.Index(fields=['consultation_request']),
+            models.Index(fields=['distance_km']),
+        ]
+    
+    def __str__(self):
+        return f"Notification to Dr. {self.veterinarian.name} - {self.status}"
+    
+    def mark_as_delivered(self):
+        """Mark notification as delivered."""
+        self.status = 'delivered'
+        self.delivered_at = timezone.now()
+        self.save()
+    
+    def mark_as_read(self):
+        """Mark notification as read."""
+        self.status = 'read'
+        self.read_at = timezone.now()
+        self.save()
+    
+    def mark_as_responded(self):
+        """Mark notification as responded."""
+        self.status = 'responded'
+        self.responded_at = timezone.now()
+        self.save()
+
+
+class VeterinarianPatient(models.Model):
+    """Model for managing cattle patients under veterinarian care."""
+    
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('transferred', 'Transferred'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Related Objects
+    veterinarian = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='patients'
+    )
+    cattle = models.ForeignKey(
+        'cattle.Cattle',
+        on_delete=models.CASCADE,
+        related_name='veterinarian_patients'
+    )
+    cattle_owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='cattle_under_vet_care'
+    )
+    
+    # Patient Management
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    added_at = models.DateTimeField(default=timezone.now)
+    
+    # Treatment Information
+    treatment_plan = models.TextField(blank=True)
+    last_consultation = models.DateTimeField(null=True, blank=True)
+    next_follow_up = models.DateTimeField(null=True, blank=True)
+    
+    # Related Consultation Request
+    consultation_request = models.ForeignKey(
+        ConsultationRequest,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='patient_records'
+    )
+    
+    class Meta:
+        db_table = 'veterinarian_patients'
+        unique_together = ['veterinarian', 'cattle']
+        ordering = ['-added_at']
+        indexes = [
+            models.Index(fields=['veterinarian', 'status']),
+            models.Index(fields=['cattle_owner']),
+            models.Index(fields=['status', '-added_at']),
+        ]
+    
+    def __str__(self):
+        return f"Patient: {self.cattle.identification_number} under Dr. {self.veterinarian.name}"
+    
+    def mark_as_completed(self):
+        """Mark patient case as completed."""
+        self.status = 'completed'
+        self.save()
+
+
+class PatientNote(models.Model):
+    """Model for veterinarian notes about patients."""
+    
+    NOTE_TYPE_CHOICES = [
+        ('observation', 'Observation'),
+        ('treatment', 'Treatment'),
+        ('follow_up', 'Follow-up'),
+        ('general', 'General'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Related Objects
+    veterinarian = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='patient_notes'
+    )
+    patient = models.ForeignKey(
+        VeterinarianPatient,
+        on_delete=models.CASCADE,
+        related_name='notes'
+    )
+    
+    # Note Details
+    note_type = models.CharField(max_length=20, choices=NOTE_TYPE_CHOICES, default='general')
+    content = models.TextField()
+    is_private = models.BooleanField(
+        default=False,
+        help_text='Whether this note is private to the veterinarian'
+    )
+    
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        db_table = 'patient_notes'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['patient', '-created_at']),
+            models.Index(fields=['veterinarian', 'note_type']),
+        ]
+    
+    def __str__(self):
+        return f"Note for {self.patient.cattle.identification_number} - {self.note_type}"
+
+
+class VeterinarianDashboardStats(models.Model):
+    """Model for caching veterinarian dashboard statistics."""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Related Veterinarian
+    veterinarian = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='vet_dashboard_stats'
+    )
+    
+    # Time Period
+    period_start = models.DateTimeField()
+    period_end = models.DateTimeField()
+    
+    # Statistics
+    pending_requests = models.IntegerField(default=0)
+    total_consultations = models.IntegerField(default=0)
+    active_patients = models.IntegerField(default=0)
+    emergency_responses = models.IntegerField(default=0)
+    average_response_time = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Average response time in minutes'
+    )
+    patient_satisfaction_rating = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=Decimal('0.00')
+    )
+    
+    # Revenue
+    total_earnings = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00')
+    )
+    consultation_fees = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00')
+    )
+    emergency_fees = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00')
+    )
+    
+    # Metadata
+    last_updated = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'veterinarian_dashboard_stats'
+        indexes = [
+            models.Index(fields=['veterinarian', '-last_updated']),
+        ]
+    
+    def __str__(self):
+        return f"Dashboard Stats for Dr. {self.veterinarian.name}"
+
+
+class FollowUpSchedule(models.Model):
+    """Model for scheduling follow-up appointments for patients."""
+    
+    FOLLOW_UP_TYPE_CHOICES = [
+        ('check_up', 'Check-up'),
+        ('treatment_review', 'Treatment Review'),
+        ('medication_check', 'Medication Check'),
+        ('recovery_assessment', 'Recovery Assessment'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Related Objects
+    patient = models.ForeignKey(
+        VeterinarianPatient,
+        on_delete=models.CASCADE,
+        related_name='follow_up_schedules'
+    )
+    
+    # Schedule Details
+    scheduled_date = models.DateTimeField()
+    follow_up_type = models.CharField(max_length=30, choices=FOLLOW_UP_TYPE_CHOICES)
+    notes = models.TextField(blank=True)
+    
+    # Status
+    is_completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    # Creator
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='created_follow_ups'
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        db_table = 'follow_up_schedules'
+        ordering = ['scheduled_date']
+        indexes = [
+            models.Index(fields=['patient', 'scheduled_date']),
+            models.Index(fields=['is_completed', 'scheduled_date']),
+        ]
+    
+    def __str__(self):
+        return f"Follow-up for {self.patient.cattle.identification_number} - {self.follow_up_type}"
+    
+    def mark_as_completed(self):
+        """Mark follow-up as completed."""
+        self.is_completed = True
+        self.completed_at = timezone.now()
+        self.save()

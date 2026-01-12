@@ -10,6 +10,8 @@ class CattleSerializer(serializers.ModelSerializer):
     
     owner_name = serializers.CharField(source='owner.name', read_only=True)
     owner_email = serializers.EmailField(source='owner.email', read_only=True)
+    image_url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Cattle
@@ -25,11 +27,29 @@ class CattleSerializer(serializers.ModelSerializer):
             'weight',
             'metadata',
             'health_status',
+            'image',
+            'image_url',
+            'thumbnail_url',
             'is_archived',
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['id', 'owner', 'is_archived', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'owner', 'is_archived', 'created_at', 'updated_at', 'image_url', 'thumbnail_url']
+    
+    def get_image_url(self, obj):
+        """Get the full URL for the cattle image."""
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+    
+    def get_thumbnail_url(self, obj):
+        """Get the thumbnail URL for the cattle image."""
+        # For now, return the same as image_url
+        # In production, this would return a processed thumbnail
+        return self.get_image_url(obj)
     
     def validate_age(self, value):
         """Validate cattle age is reasonable."""
@@ -49,16 +69,32 @@ class CattleSerializer(serializers.ModelSerializer):
         return value
     
     def validate_identification_number(self, value):
-        """Validate identification number uniqueness."""
+        """Validate identification number uniqueness within owner scope."""
+        request = self.context.get('request')
+        if not request or not request.user:
+            raise serializers.ValidationError("Authentication required.")
+        
         # Check if updating existing cattle
         if self.instance:
             # Exclude current instance from uniqueness check
-            if Cattle.objects.exclude(pk=self.instance.pk).filter(identification_number=value).exists():
-                raise serializers.ValidationError("This identification number is already in use.")
+            existing = Cattle.objects.filter(
+                owner=request.user,
+                identification_number=value,
+                is_archived=False
+            ).exclude(pk=self.instance.pk)
         else:
             # Creating new cattle
-            if Cattle.objects.filter(identification_number=value).exists():
-                raise serializers.ValidationError("This identification number is already in use.")
+            existing = Cattle.objects.filter(
+                owner=request.user,
+                identification_number=value,
+                is_archived=False
+            )
+        
+        if existing.exists():
+            raise serializers.ValidationError(
+                f'You already have cattle with identification number "{value}".'
+            )
+        
         return value
 
 
@@ -74,7 +110,8 @@ class CattleCreateSerializer(serializers.ModelSerializer):
             'gender',
             'weight',
             'metadata',
-            'health_status'
+            'health_status',
+            'image'
         ]
     
     def validate_age(self, value):
@@ -92,6 +129,26 @@ class CattleCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Weight must be positive.")
             if value > 2000:
                 raise serializers.ValidationError("Weight seems unreasonably high. Please verify.")
+        return value
+    
+    def validate_identification_number(self, value):
+        """Validate identification number uniqueness within owner scope."""
+        request = self.context.get('request')
+        if not request or not request.user:
+            raise serializers.ValidationError("Authentication required.")
+        
+        # Check for existing cattle with same ID for this owner
+        existing = Cattle.objects.filter(
+            owner=request.user,
+            identification_number=value,
+            is_archived=False
+        )
+        
+        if existing.exists():
+            raise serializers.ValidationError(
+                f'You already have cattle with identification number "{value}".'
+            )
+        
         return value
     
     def create(self, validated_data):
@@ -112,7 +169,8 @@ class CattleUpdateSerializer(serializers.ModelSerializer):
             'gender',
             'weight',
             'metadata',
-            'health_status'
+            'health_status',
+            'image'
         ]
     
     def validate_age(self, value):
@@ -185,6 +243,9 @@ class CattleHistorySerializer(serializers.ModelSerializer):
 class CattleListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for cattle list view."""
     
+    image_url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = Cattle
         fields = [
@@ -194,6 +255,21 @@ class CattleListSerializer(serializers.ModelSerializer):
             'identification_number',
             'gender',
             'health_status',
+            'image_url',
+            'thumbnail_url',
             'created_at'
         ]
         read_only_fields = fields
+    
+    def get_image_url(self, obj):
+        """Get the full URL for the cattle image."""
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+    
+    def get_thumbnail_url(self, obj):
+        """Get the thumbnail URL for the cattle image."""
+        return self.get_image_url(obj)

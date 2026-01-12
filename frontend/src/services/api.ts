@@ -73,23 +73,81 @@ export const authAPI = {
     name: string;
     phone: string;
     role: string;
+    state?: string;
+    city?: string;
+    address?: string;
+    pincode?: string;
   }) => api.post('/users/register/', userData),
   
   logout: () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
   },
+
+  getNearbyVeterinarians: () => api.get('/users/nearby-veterinarians/'),
 };
 
 // Cattle API
 export const cattleAPI = {
   list: () => api.get('/cattle/'),
   
-  create: (cattleData: CattleFormData) => api.post('/cattle/', cattleData),
+  create: (cattleData: CattleFormData) => {
+    const formData = new FormData();
+    
+    // Add all the cattle data fields
+    formData.append('breed', cattleData.breed);
+    formData.append('age', cattleData.age.toString());
+    formData.append('identification_number', cattleData.identification_number);
+    formData.append('gender', cattleData.gender);
+    
+    if (cattleData.weight !== undefined) {
+      formData.append('weight', cattleData.weight.toString());
+    }
+    
+    if (cattleData.metadata) {
+      formData.append('metadata', JSON.stringify(cattleData.metadata));
+    }
+    
+    // Add image if provided
+    if (cattleData.image) {
+      formData.append('image', cattleData.image);
+    }
+    
+    return api.post('/cattle/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
   
   get: (id: string) => api.get(`/cattle/${id}/`),
   
-  update: (id: string, cattleData: any) => api.patch(`/cattle/${id}/`, cattleData),
+  update: (id: string, cattleData: any) => {
+    // Check if we have an image to upload
+    if (cattleData.image instanceof File) {
+      const formData = new FormData();
+      
+      // Add all fields to FormData
+      Object.keys(cattleData).forEach(key => {
+        if (key === 'image') {
+          formData.append('image', cattleData.image);
+        } else if (key === 'metadata' && cattleData[key]) {
+          formData.append('metadata', JSON.stringify(cattleData[key]));
+        } else if (cattleData[key] !== undefined && cattleData[key] !== null) {
+          formData.append(key, cattleData[key].toString());
+        }
+      });
+      
+      return api.patch(`/cattle/${id}/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    } else {
+      // No image, use regular JSON
+      return api.patch(`/cattle/${id}/`, cattleData);
+    }
+  },
   
   delete: (id: string) => api.delete(`/cattle/${id}/`),
   
@@ -231,6 +289,48 @@ export const consultationAPI = {
   
   cancel: (id: string, reason: string) => 
     api.post(`/consultations/${id}/cancel/`, { reason }),
+  
+  // Symptom reporting and veterinary notification
+  submitSymptomReport: (data: {
+    cattle_id: string;
+    symptoms: string;
+    severity: string;
+    is_emergency: boolean;
+    ai_predictions?: any[];
+    location: {
+      latitude: number;
+      longitude: number;
+      address: string;
+    };
+  }) => api.post('/consultations/symptoms/report/', data),
+  
+  // Veterinary request management
+  getConsultationRequests: (filters?: any) => 
+    api.get('/consultations/requests/', { params: filters }),
+  
+  respondToRequest: (requestId: string, data: {
+    action: 'accept' | 'decline' | 'request_info';
+    message?: string;
+  }) => api.post(`/consultations/requests/${requestId}/respond/`, data),
+  
+  // Patient management
+  getMyPatients: (filters?: any) => 
+    api.get('/consultations/patients/', { params: filters }),
+  
+  getPatientDetail: (patientId: string) => 
+    api.get(`/consultations/patients/${patientId}/`),
+  
+  addPatientNote: (patientId: string, data: {
+    note_type: string;
+    content: string;
+    is_private?: boolean;
+  }) => api.post(`/consultations/patients/${patientId}/notes/`, data),
+  
+  markPatientCompleted: (patientId: string) => 
+    api.post(`/consultations/patients/${patientId}/complete/`),
+  
+  // Dashboard statistics
+  getDashboardStats: () => api.get('/consultations/dashboard/stats/'),
   
   // Chat functionality
   sendMessage: (consultationId: string, message: string, image?: File) => {

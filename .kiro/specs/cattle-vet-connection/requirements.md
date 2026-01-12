@@ -15,6 +15,9 @@ The Cattle-Veterinarian Connection System specification focuses on implementing 
 - **Consultation Management**: End-to-end workflow for managing consultation lifecycle
 - **Performance Analytics**: Metrics and analytics for veterinarian performance and cattle owner health trends
 - **Emergency Consultation System**: Priority handling for urgent cattle health cases
+- **Symptom Notification System**: Automated system to notify nearby veterinarians when cattle owners report symptoms
+- **Veterinary Request Management**: System for veterinarians to accept, decline, and manage consultation requests from symptom reports
+- **Patient Management Dashboard**: Interface for veterinarians to track and manage their accepted patients and consultation statistics
 
 ## Requirements
 
@@ -137,3 +140,59 @@ The Cattle-Veterinarian Connection System specification focuses on implementing 
 3. WHEN documenting consultation findings, THE System SHALL allow veterinarians to confirm, modify, or reject AI predictions with reasoning and alternative diagnoses
 4. WHEN prescribing treatments, THE System SHALL provide drug databases, dosage calculators, and interaction warnings based on cattle breed, weight, and health status
 5. WHEN consultation requires follow-up, THE System SHALL automatically schedule next appointments and create treatment monitoring reminders for cattle owners
+
+### Requirement 11
+
+**User Story:** As a cattle owner, I want nearby veterinarians to be automatically notified when I report symptoms for my cattle, so that I can quickly get professional help without manually searching and booking consultations.
+
+#### Acceptance Criteria
+
+1. WHEN a cattle owner submits a symptom report with cattle details, THE System SHALL automatically identify veterinarians within 50km radius of the cattle location and send notifications within 30 seconds
+2. WHEN symptom reports are submitted, THE System SHALL send immediate notifications to nearby veterinarians containing cattle information, owner contact details, symptoms description, uploaded images, AI predictions with confidence scores, and estimated urgency level
+3. WHEN a symptom report is marked as emergency, THE System SHALL send priority notifications to all available emergency veterinarians with urgent status indicators and bypass normal availability filters
+4. WHEN veterinarians receive symptom notifications, THE System SHALL display cattle breed, age, weight, symptoms, location with distance from veterinarian, emergency status, and owner's preferred communication method in the notification
+5. WHEN no veterinarians are available in the immediate area, THE System SHALL expand the search radius to 100km and notify additional veterinarians with clear indication of increased distance
+6. WHEN symptom reports include uploaded images, THE System SHALL compress and attach images to notifications with maximum 2MB total size per notification
+7. WHEN multiple symptom reports are submitted for the same cattle within 24 hours, THE System SHALL consolidate notifications and indicate follow-up status to veterinarians
+
+### Requirement 12
+
+**User Story:** As a veterinarian, I want to receive and manage consultation requests from symptom reports, so that I can choose which cases to accept based on my availability and expertise.
+
+#### Acceptance Criteria
+
+1. WHEN receiving symptom notifications, THE System SHALL display request details with options to accept, decline, or request more information, and allow veterinarians to respond within 15 minutes for emergency cases and 2 hours for regular cases
+2. WHEN a veterinarian accepts a consultation request, THE System SHALL immediately notify the cattle owner via their preferred communication method and create a consultation session with unique session ID
+3. WHEN a veterinarian declines a request, THE System SHALL notify other nearby veterinarians within 5 minutes and update the request status with decline reason if provided
+4. WHEN multiple veterinarians accept the same request, THE System SHALL assign the consultation to the first responder based on timestamp and notify others that the case is taken with automatic request removal from their pending list
+5. WHEN a veterinarian requests more information, THE System SHALL send a structured message to the cattle owner with specific questions and keep the request in pending status with 24-hour expiration
+6. WHEN veterinarians are offline or unavailable, THE System SHALL queue notifications and deliver them when the veterinarian comes online with timestamp indicating when the request was originally sent
+7. WHEN consultation requests expire without response, THE System SHALL automatically expand the search radius and notify additional veterinarians with indication of previous non-response
+
+### Requirement 13
+
+**User Story:** As a veterinarian, I want accepted consultation requests to appear in my "My Patients" dashboard, so that I can track and manage all cattle under my care.
+
+#### Acceptance Criteria
+
+1. WHEN a veterinarian accepts a consultation request, THE System SHALL add the cattle to the veterinarian's patient list with complete health information, consultation history, and initial symptom report within 10 seconds
+2. WHEN viewing "My Patients" dashboard, THE System SHALL display all accepted cattle with current health status, last consultation date, treatment plans, follow-up schedules, and priority indicators sorted by urgency and last activity
+3. WHEN managing patients, THE System SHALL allow veterinarians to update treatment notes, schedule follow-ups, mark cases as resolved, and set reminder alerts for medication schedules or check-ups
+4. WHEN patients require ongoing care, THE System SHALL maintain the cattle in the patient list until the veterinarian marks the case as completed and provide automatic reminders for scheduled follow-ups
+5. WHEN viewing patient details, THE System SHALL show complete consultation history, all symptom reports with timestamps, AI predictions with accuracy tracking, treatment outcomes, and owner communication preferences
+6. WHEN patients have emergency status, THE System SHALL highlight them prominently in the dashboard with red indicators and show time elapsed since emergency was declared
+7. WHEN veterinarians have multiple active patients, THE System SHALL provide filtering and search capabilities by cattle name, owner name, disease type, treatment status, and date ranges
+
+### Requirement 14
+
+**User Story:** As a veterinarian, I want my dashboard to show accurate counts of pending requests and total consultations, so that I can monitor my workload and practice statistics.
+
+#### Acceptance Criteria
+
+1. WHEN accessing the veterinarian dashboard, THE System SHALL display current count of pending consultation requests awaiting response with separate counters for emergency and regular cases, and update counts in real-time
+2. WHEN viewing dashboard statistics, THE System SHALL show total consultations completed today, this week, and this month, average response time to requests, patient satisfaction ratings, and revenue metrics
+3. WHEN new consultation requests arrive, THE System SHALL immediately update the pending requests counter, send real-time notifications via app, SMS, and email, and show visual indicators for emergency cases
+4. WHEN consultation requests are accepted or declined, THE System SHALL update the pending counter within 5 seconds and move requests to appropriate status categories with timestamp tracking
+5. WHEN generating performance reports, THE System SHALL calculate accurate statistics based on consultation data including emergency response times, case resolution rates, follow-up completion rates, and patient outcome tracking
+6. WHEN dashboard displays statistics, THE System SHALL provide drill-down capabilities to view detailed breakdowns by time period, case type, emergency status, and patient demographics
+7. WHEN veterinarians set availability status, THE System SHALL reflect this in request routing and show clear indicators on the dashboard of current availability and next scheduled availability window

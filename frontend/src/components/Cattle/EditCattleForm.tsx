@@ -14,8 +14,11 @@ import {
   Alert,
   CircularProgress,
   Grid,
+  Typography,
+  Divider,
 } from '@mui/material';
 import { cattleAPI } from '../../services/api';
+import ImageUpload from '../Common/ImageUpload';
 import type { Cattle, CattleFormData } from '../../types';
 
 interface EditCattleFormProps {
@@ -38,7 +41,11 @@ const EditCattleForm: React.FC<EditCattleFormProps> = ({
     gender: 'female',
     weight: undefined,
     metadata: {},
+    image: null,
   });
+
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [imageChanged, setImageChanged] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -54,7 +61,10 @@ const EditCattleForm: React.FC<EditCattleFormProps> = ({
         gender: cattle.gender,
         weight: cattle.weight,
         metadata: cattle.metadata || {},
+        image: null, // Don't pre-populate image file
       });
+      setCurrentImageUrl(cattle.image_url || null);
+      setImageChanged(false);
       setErrors({});
       setSubmitError('');
     }
@@ -94,6 +104,11 @@ const EditCattleForm: React.FC<EditCattleFormProps> = ({
   const handleInputChange = (field: keyof CattleFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
+    // Track if image has changed
+    if (field === 'image') {
+      setImageChanged(true);
+    }
+    
     // Clear error for this field when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -109,7 +124,13 @@ const EditCattleForm: React.FC<EditCattleFormProps> = ({
     setSubmitError('');
 
     try {
-      const response = await cattleAPI.update(cattle.id, formData);
+      // Prepare update data - only include image if it has changed
+      const updateData = { ...formData };
+      if (!imageChanged) {
+        delete updateData.image;
+      }
+      
+      const response = await cattleAPI.update(cattle.id, updateData);
       const updatedCattle = response.data;
       
       onSuccess(updatedCattle);
@@ -120,7 +141,9 @@ const EditCattleForm: React.FC<EditCattleFormProps> = ({
       if (error.response?.data?.error) {
         setSubmitError(error.response.data.error);
       } else if (error.response?.data?.identification_number) {
-        setSubmitError('This identification number is already in use');
+        setSubmitError('You already have cattle with this identification number.');
+      } else if (error.response?.data?.image) {
+        setSubmitError(`Image error: ${error.response.data.image[0]}`);
       } else {
         setSubmitError('Failed to update cattle profile. Please try again.');
       }
@@ -132,6 +155,7 @@ const EditCattleForm: React.FC<EditCattleFormProps> = ({
   const handleClose = () => {
     setErrors({});
     setSubmitError('');
+    setImageChanged(false);
     onClose();
   };
 
@@ -216,6 +240,24 @@ const EditCattleForm: React.FC<EditCattleFormProps> = ({
               />
             </Grid>
           </Grid>
+
+          <Divider sx={{ my: 3 }} />
+
+          <Typography variant="h6" gutterBottom>
+            Cattle Image
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Update or remove the cattle photo. Leave unchanged if you don't want to modify the image.
+          </Typography>
+
+          <ImageUpload
+            value={imageChanged ? formData.image : currentImageUrl}
+            onChange={(file) => handleInputChange('image', file)}
+            onError={(error) => setSubmitError(error)}
+            label={currentImageUrl ? "Replace Image" : "Upload Cattle Photo"}
+            helperText="JPEG, PNG, WebP formats supported. Max 5MB. Leave unchanged to keep current image."
+            disabled={loading}
+          />
 
           <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>

@@ -52,6 +52,7 @@ const VeterinarianDashboard: React.FC<VeterinarianDashboardProps> = ({ user }) =
   const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [regionalAlerts, setRegionalAlerts] = useState<any[]>([]);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [myPatients, setMyPatients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -63,24 +64,42 @@ const VeterinarianDashboard: React.FC<VeterinarianDashboardProps> = ({ user }) =
     try {
       setLoading(true);
       
-      // Load veterinarian-specific dashboard data
+      // Load veterinarian-specific dashboard statistics
       try {
-        const dashboardResponse = await dashboardAPI.getVeterinarianStats();
-        setDashboardStats(dashboardResponse.data.performance_metrics);
-        setRegionalAlerts(dashboardResponse.data.regional_health || []);
+        const statsResponse = await consultationAPI.getDashboardStats();
+        setDashboardStats(statsResponse.data);
       } catch (dashboardErr) {
         console.warn('Could not load dashboard stats:', dashboardErr);
         // Fallback to mock data
         setDashboardStats({
-          totalConsultations: 45,
-          completedToday: 8,
-          pendingRequests: 3,
-          emergencyAlerts: 2,
-          averageRating: 4.8,
-          responseTime: 12,
-          regionalCases: 23,
-          activeOutbreaks: 1
+          pending_requests: 3,
+          total_consultations: 45,
+          active_patients: 12,
+          emergency_responses: 2,
+          average_response_time: 15.5,
+          patient_satisfaction_rating: 4.8,
+          total_earnings: 5000.00,
+          consultation_fees: 4500.00,
+          emergency_fees: 500.00
         });
+      }
+
+      // Load pending consultation requests
+      try {
+        const requestsResponse = await consultationAPI.getConsultationRequests({ status: 'pending' });
+        setPendingRequests(requestsResponse.data.consultation_requests || []);
+      } catch (requestsErr) {
+        console.warn('Could not load consultation requests:', requestsErr);
+        setPendingRequests([]);
+      }
+
+      // Load my patients
+      try {
+        const patientsResponse = await consultationAPI.getMyPatients({ status: 'active' });
+        setMyPatients(patientsResponse.data.patients || []);
+      } catch (patientsErr) {
+        console.warn('Could not load patients:', patientsErr);
+        setMyPatients([]);
       }
 
       // Load upcoming consultations
@@ -119,35 +138,6 @@ const VeterinarianDashboard: React.FC<VeterinarianDashboardProps> = ({ user }) =
             risk_level: 'medium',
             distance: 45,
             created_at: new Date().toISOString()
-          }
-        ]);
-      }
-
-      // Load pending consultation requests
-      try {
-        const requestsResponse = await consultationAPI.list({ status: 'scheduled' });
-        setPendingRequests(requestsResponse.data.results || []);
-      } catch (requestsErr) {
-        console.warn('Could not load pending requests:', requestsErr);
-        // Fallback to mock data
-        setPendingRequests([
-          {
-            id: '1',
-            cattle_owner: 'Ramesh Patil',
-            cattle_id: 'MH001',
-            case_description: 'Cattle showing signs of fever and loss of appetite',
-            priority: 'urgent',
-            requested_at: new Date().toISOString(),
-            consultation_type: 'video'
-          },
-          {
-            id: '2',
-            cattle_owner: 'Suresh Kumar',
-            cattle_id: 'MH002',
-            case_description: 'Skin lesions observed on cattle',
-            priority: 'emergency',
-            requested_at: new Date().toISOString(),
-            consultation_type: 'video'
           }
         ]);
       }
@@ -191,10 +181,10 @@ const VeterinarianDashboard: React.FC<VeterinarianDashboardProps> = ({ user }) =
               <Box display="flex" alignItems="center">
                 <LocalHospital color="primary" sx={{ mr: 2, fontSize: 40 }} />
                 <Box>
-                  <Typography variant="h4">{dashboardStats?.totalConsultations || 0}</Typography>
+                  <Typography variant="h4">{dashboardStats?.total_consultations || 0}</Typography>
                   <Typography color="text.secondary">Total Consultations</Typography>
                   <Typography variant="caption" color="success.main">
-                    +{dashboardStats?.completedToday || 0} today
+                    All time
                   </Typography>
                 </Box>
               </Box>
@@ -206,18 +196,20 @@ const VeterinarianDashboard: React.FC<VeterinarianDashboardProps> = ({ user }) =
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center">
-                <Badge badgeContent={dashboardStats?.pendingRequests || 0} color="warning">
+                <Badge badgeContent={dashboardStats?.pending_requests || 0} color="warning">
                   <Schedule color="info" sx={{ mr: 2, fontSize: 40 }} />
                 </Badge>
                 <Box>
-                  <Typography variant="h4">{dashboardStats?.pendingRequests || 0}</Typography>
+                  <Typography variant="h4">{dashboardStats?.pending_requests || 0}</Typography>
                   <Typography color="text.secondary">Pending Requests</Typography>
-                  <Chip 
-                    label="Action Required" 
-                    color="warning" 
-                    size="small" 
-                    sx={{ mt: 0.5 }}
-                  />
+                  {(dashboardStats?.pending_requests || 0) > 0 && (
+                    <Chip 
+                      label="Action Required" 
+                      color="warning" 
+                      size="small" 
+                      sx={{ mt: 0.5 }}
+                    />
+                  )}
                 </Box>
               </Box>
             </CardContent>
@@ -228,12 +220,12 @@ const VeterinarianDashboard: React.FC<VeterinarianDashboardProps> = ({ user }) =
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center">
-                <Assessment color="success" sx={{ mr: 2, fontSize: 40 }} />
+                <People color="success" sx={{ mr: 2, fontSize: 40 }} />
                 <Box>
-                  <Typography variant="h4">{dashboardStats?.averageRating || 0}</Typography>
-                  <Typography color="text.secondary">Average Rating</Typography>
+                  <Typography variant="h4">{dashboardStats?.active_patients || 0}</Typography>
+                  <Typography color="text.secondary">Active Patients</Typography>
                   <Typography variant="caption" color="success.main">
-                    ⭐ Excellent performance
+                    Under your care
                   </Typography>
                 </Box>
               </Box>
@@ -245,12 +237,12 @@ const VeterinarianDashboard: React.FC<VeterinarianDashboardProps> = ({ user }) =
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center">
-                <AccessTime color="warning" sx={{ mr: 2, fontSize: 40 }} />
+                <Assessment color="warning" sx={{ mr: 2, fontSize: 40 }} />
                 <Box>
-                  <Typography variant="h4">{dashboardStats?.responseTime || 0}m</Typography>
-                  <Typography color="text.secondary">Avg Response Time</Typography>
+                  <Typography variant="h4">{dashboardStats?.patient_satisfaction_rating || 0}</Typography>
+                  <Typography color="text.secondary">Satisfaction Rating</Typography>
                   <Typography variant="caption" color="success.main">
-                    Fast response
+                    ⭐ Excellent
                   </Typography>
                 </Box>
               </Box>

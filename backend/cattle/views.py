@@ -156,6 +156,61 @@ def archived_cattle(request):
     }, status=status.HTTP_200_OK)
 
 
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAuthenticated, IsOwner])
+def cattle_image_update(request, cattle_id):
+    """
+    Update or delete cattle image.
+    
+    PUT /api/cattle/{cattle_id}/image/ - Update image
+    DELETE /api/cattle/{cattle_id}/image/ - Remove image
+    """
+    # Get cattle
+    cattle = get_object_or_404(
+        Cattle,
+        id=cattle_id,
+        owner=request.user
+    )
+    
+    if request.method == 'PUT':
+        # Update image
+        if 'image' not in request.FILES:
+            return Response({
+                'error': 'No image file provided'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate and save new image
+        try:
+            cattle.image = request.FILES['image']
+            cattle.save()
+            
+            serializer = CattleSerializer(cattle, context={'request': request})
+            return Response({
+                'message': 'Image updated successfully',
+                'cattle': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except ValidationError as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'DELETE':
+        # Remove image
+        if cattle.image:
+            cattle.image.delete(save=False)  # Delete file from storage
+            cattle.image = None
+            cattle.save()
+            
+            return Response({
+                'message': 'Image removed successfully'
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'message': 'No image to remove'
+            }, status=status.HTTP_200_OK)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsOwner])
 def cattle_stats(request):

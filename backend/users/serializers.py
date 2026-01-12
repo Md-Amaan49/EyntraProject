@@ -26,9 +26,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['email', 'phone', 'name', 'role', 'password', 'password_confirm']
+        fields = ['email', 'phone', 'name', 'role', 'password', 'password_confirm', 
+                 'state', 'city', 'address', 'pincode']
         extra_kwargs = {
-            'role': {'required': False, 'default': 'owner'}
+            'role': {'required': False, 'default': 'owner'},
+            'state': {'required': False},
+            'city': {'required': False},
+            'address': {'required': False},
+            'pincode': {'required': False},
         }
     
     def validate(self, attrs):
@@ -78,8 +83,9 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'email', 'phone', 'name', 'role', 'is_active', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'email', 'role', 'created_at', 'updated_at']
+        fields = ['id', 'email', 'phone', 'name', 'role', 'is_active', 'created_at', 'updated_at',
+                 'state', 'city', 'address', 'pincode', 'location_display']
+        read_only_fields = ['id', 'email', 'role', 'created_at', 'updated_at', 'location_display']
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
@@ -87,7 +93,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['name', 'phone']
+        fields = ['name', 'phone', 'state', 'city', 'address', 'pincode']
     
     def validate_phone(self, value):
         """Validate phone uniqueness excluding current user."""
@@ -131,3 +137,13 @@ class PasswordChangeSerializer(serializers.Serializer):
         if not bcrypt.checkpw(value.encode('utf-8'), user.password.encode('utf-8')):
             raise serializers.ValidationError("Old password is incorrect.")
         return value
+
+
+class NearbyVeterinarianSerializer(serializers.ModelSerializer):
+    """Serializer for nearby veterinarians."""
+    
+    location_display = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = User
+        fields = ['id', 'name', 'phone', 'email', 'state', 'city', 'address', 'location_display']

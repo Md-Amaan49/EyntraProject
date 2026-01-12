@@ -23,6 +23,9 @@ export interface Cattle {
   metadata?: Record<string, any>;
   health_status: 'healthy' | 'sick' | 'under_treatment';
   is_archived: boolean;
+  image?: string;
+  image_url?: string;
+  thumbnail_url?: string;
   created_at: string;
   updated_at: string;
   owner_name?: string;
@@ -132,6 +135,7 @@ export interface CattleFormData {
   gender: 'male' | 'female';
   weight?: number;
   metadata?: Record<string, any>;
+  image?: File | null;
 }
 
 export interface HealthEvent {

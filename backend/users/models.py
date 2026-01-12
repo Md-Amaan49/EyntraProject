@@ -60,6 +60,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     name = models.CharField(max_length=255)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='owner')
     
+    # Location fields
+    state = models.CharField(max_length=50, blank=True, null=True, help_text="State code (e.g., KA, MH)")
+    city = models.CharField(max_length=100, blank=True, null=True, help_text="City ID from location data")
+    address = models.TextField(blank=True, null=True, help_text="Complete address")
+    pincode = models.CharField(max_length=10, blank=True, null=True, help_text="PIN/ZIP code")
+    
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     
@@ -78,6 +84,9 @@ class User(AbstractBaseUser, PermissionsMixin):
             models.Index(fields=['email']),
             models.Index(fields=['phone']),
             models.Index(fields=['role']),
+            models.Index(fields=['state']),
+            models.Index(fields=['city']),
+            models.Index(fields=['state', 'city']),  # Composite index for location queries
         ]
     
     def __str__(self):
@@ -94,3 +103,37 @@ class User(AbstractBaseUser, PermissionsMixin):
     def is_admin(self):
         """Check if user is an administrator."""
         return self.role == 'admin'
+    
+    def get_nearby_veterinarians(self, radius_km=50):
+        """Get veterinarians in the same city or state."""
+        if not self.state:
+            return User.objects.none()
+        
+        # First try to find veterinarians in the same city
+        if self.city:
+            same_city_vets = User.objects.filter(
+                role='veterinarian',
+                is_active=True,
+                state=self.state,
+                city=self.city
+            ).exclude(id=self.id)
+            
+            if same_city_vets.exists():
+                return same_city_vets
+        
+        # If no veterinarians in the same city, find in the same state
+        return User.objects.filter(
+            role='veterinarian',
+            is_active=True,
+            state=self.state
+        ).exclude(id=self.id)
+    
+    @property
+    def location_display(self):
+        """Get a human-readable location string."""
+        parts = []
+        if self.city:
+            parts.append(self.city)
+        if self.state:
+            parts.append(self.state)
+        return ', '.join(parts) if parts else 'Location not set'

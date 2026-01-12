@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   Card,
   CardContent,
+  CardMedia,
   Typography,
   Chip,
   Box,
@@ -11,6 +12,7 @@ import {
   useMediaQuery,
   useTheme,
   Button,
+  Avatar,
 } from '@mui/material';
 import {
   MoreVert,
@@ -19,6 +21,7 @@ import {
   History,
   Male,
   Female,
+  Pets,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { Cattle } from '../../types';
@@ -75,6 +78,30 @@ const CattleCard: React.FC<CattleCardProps> = ({ cattle, onUpdate }) => {
 
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Cattle Image */}
+      {cattle.image_url ? (
+        <CardMedia
+          component="img"
+          height="200"
+          image={cattle.image_url}
+          alt={`${cattle.breed} - ${cattle.identification_number}`}
+          sx={{ objectFit: 'cover' }}
+        />
+      ) : (
+        <Box
+          sx={{
+            height: 200,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'grey.100',
+            color: 'grey.400',
+          }}
+        >
+          <Pets sx={{ fontSize: 60 }} />
+        </Box>
+      )}
+
       <CardContent sx={{ flexGrow: 1 }}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
           <Box>

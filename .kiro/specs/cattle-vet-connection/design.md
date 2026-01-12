@@ -14,26 +14,31 @@ The system follows a microservices architecture with real-time communication cap
 ├─────────────────────────────────────────────────────────────┤
 │  Vet Discovery UI  │ Booking Interface │ Communication Hub  │
 │  Dashboard Views   │ Analytics Portal  │ Notification Center │
+│  Request Manager   │ Patient Dashboard │ Symptom Reporter    │
 ├─────────────────────────────────────────────────────────────┤
 │                  Real-time Layer                             │
 ├─────────────────────────────────────────────────────────────┤
 │  WebSocket Server  │ WebRTC Signaling │ Push Notifications  │
 │  Chat Engine       │ Video/Voice Calls │ Alert Broadcasting  │
+│  Request Notifier  │ Status Updates    │ Emergency Alerts    │
 ├─────────────────────────────────────────────────────────────┤
 │                   API Gateway Layer                          │
 ├─────────────────────────────────────────────────────────────┤
 │  Vet Discovery API │ Consultation API  │ Communication API   │
 │  Booking API       │ Analytics API     │ Notification API    │
+│  Request Mgmt API  │ Patient Mgmt API  │ Symptom Report API  │
 ├─────────────────────────────────────────────────────────────┤
 │                  Business Logic Layer                        │
 ├─────────────────────────────────────────────────────────────┤
 │  Vet Matching      │ Booking Engine    │ Session Manager     │
 │  Payment Processor │ Alert Generator   │ Analytics Engine    │
+│  Request Router    │ Patient Manager   │ Notification Engine │
 ├─────────────────────────────────────────────────────────────┤
 │                   Data Layer                                 │
 ├─────────────────────────────────────────────────────────────┤
 │  Veterinarian DB   │ Consultation DB   │ Communication DB    │
 │  Analytics DB      │ Notification DB   │ Geographic DB       │
+│  Request Queue DB  │ Patient Records   │ Symptom Reports     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -71,6 +76,24 @@ The system follows a microservices architecture with real-time communication cap
 - Report generation and export
 - Predictive health insights
 
+**SymptomReporter**
+- Symptom submission form with cattle selection
+- Emergency case flagging interface
+- Image upload for symptom documentation
+- Automatic veterinarian notification trigger
+
+**ConsultationRequestManager**
+- Real-time notification display for veterinarians
+- Request acceptance/decline interface
+- Case details and cattle information viewer
+- Emergency case prioritization display
+
+**PatientDashboard**
+- "My Patients" interface for veterinarians
+- Patient health history and treatment tracking
+- Consultation statistics and counters
+- Case management and follow-up scheduling
+
 ### Backend Services
 
 **VeterinarianMatchingService**
@@ -102,6 +125,24 @@ The system follows a microservices architecture with real-time communication cap
 - Veterinarian performance metrics calculation
 - Regional disease mapping and outbreak detection
 - Predictive modeling for health outcomes
+
+**SymptomNotificationService**
+- Automatic veterinarian identification based on location
+- Symptom report processing and AI prediction integration
+- Emergency case prioritization and routing
+- Real-time notification broadcasting to nearby veterinarians
+
+**ConsultationRequestService**
+- Request lifecycle management (pending, accepted, declined)
+- First-responder assignment logic for multiple acceptances
+- Automatic consultation creation upon acceptance
+- Request status tracking and updates
+
+**PatientManagementService**
+- Patient list management for veterinarians
+- Health history aggregation and display
+- Treatment tracking and follow-up scheduling
+- Dashboard statistics calculation (pending requests, total consultations)
 
 ## Data Models
 
@@ -328,6 +369,130 @@ interface VeterinarianPerformance {
 }
 ```
 
+### Symptom Notification Models
+
+```typescript
+interface SymptomReport {
+  id: string;
+  cattle: Cattle;
+  cattleOwner: User;
+  symptoms: string;
+  severity: 'mild' | 'moderate' | 'severe';
+  isEmergency: boolean;
+  images: HealthImage[];
+  aiPredictions: AIPrediction[];
+  location: {
+    coordinates: {
+      latitude: number;
+      longitude: number;
+    };
+    address: string;
+  };
+  reportedAt: Date;
+  status: 'submitted' | 'notified' | 'accepted' | 'completed';
+}
+
+interface ConsultationRequest {
+  id: string;
+  symptomReport: SymptomReport;
+  cattle: Cattle;
+  cattleOwner: User;
+  requestedVeterinarians: string[];
+  status: 'pending' | 'accepted' | 'declined' | 'expired';
+  priority: 'normal' | 'urgent' | 'emergency';
+  assignedVeterinarian?: User;
+  createdAt: Date;
+  expiresAt: Date;
+  acceptedAt?: Date;
+  declinedBy: string[];
+  responses: VeterinarianResponse[];
+}
+
+interface VeterinarianResponse {
+  id: string;
+  veterinarian: User;
+  consultationRequest: ConsultationRequest;
+  action: 'accept' | 'decline' | 'request_info';
+  message?: string;
+  responseTime: number; // seconds from notification to response
+  respondedAt: Date;
+}
+
+interface VeterinarianNotificationRequest {
+  id: string;
+  veterinarian: User;
+  consultationRequest: ConsultationRequest;
+  notificationChannels: ('app' | 'sms' | 'email')[];
+  status: 'sent' | 'delivered' | 'read' | 'responded';
+  distanceKm: number;
+  sentAt: Date;
+  deliveredAt?: Date;
+  readAt?: Date;
+  respondedAt?: Date;
+}
+```
+
+### Patient Management Models
+
+```typescript
+interface VeterinarianPatient {
+  id: string;
+  veterinarian: User;
+  cattle: Cattle;
+  cattleOwner: User;
+  addedAt: Date;
+  status: 'active' | 'completed' | 'transferred';
+  consultationHistory: Consultation[];
+  treatmentPlan?: TreatmentPlan;
+  followUpSchedule?: FollowUpSchedule;
+  notes: PatientNote[];
+  lastConsultation?: Date;
+  nextFollowUp?: Date;
+}
+
+interface PatientNote {
+  id: string;
+  veterinarian: User;
+  patient: VeterinarianPatient;
+  noteType: 'observation' | 'treatment' | 'follow_up' | 'general';
+  content: string;
+  isPrivate: boolean;
+  createdAt: Date;
+}
+
+interface VeterinarianDashboardStats {
+  id: string;
+  veterinarian: User;
+  period: {
+    startDate: Date;
+    endDate: Date;
+  };
+  pendingRequests: number;
+  totalConsultations: number;
+  activePatients: number;
+  emergencyResponses: number;
+  averageResponseTime: number;
+  patientSatisfactionRating: number;
+  revenue: {
+    totalEarnings: number;
+    consultationFees: number;
+    emergencyFees: number;
+  };
+  lastUpdated: Date;
+}
+
+interface FollowUpSchedule {
+  id: string;
+  patient: VeterinarianPatient;
+  scheduledDate: Date;
+  followUpType: 'check_up' | 'treatment_review' | 'medication_check' | 'recovery_assessment';
+  notes: string;
+  isCompleted: boolean;
+  completedAt?: Date;
+  createdBy: User;
+}
+```
+
 ## Correctness Properties
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system-essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
@@ -506,6 +671,24 @@ interface VeterinarianPerformance {
 - Reminder scheduling errors with manual notification options
 - Emergency notification failures with direct contact protocols
 
+### Symptom Notification Errors
+- Veterinarian identification failures with manual vet selection fallback
+- Notification delivery failures with retry mechanisms and alternative channels
+- Emergency case routing failures with immediate escalation to all available vets
+- Geographic service failures with manual location entry options
+
+### Consultation Request Errors
+- Multiple acceptance conflicts with automatic first-responder assignment
+- Request expiration handling with automatic re-notification to additional vets
+- Veterinarian unavailability with automatic request redistribution
+- Patient assignment failures with manual intervention alerts
+
+### Patient Management Errors
+- Patient data synchronization failures with offline mode support
+- Dashboard counter calculation errors with manual refresh options
+- Follow-up scheduling conflicts with alternative time suggestions
+- Treatment note saving failures with local storage backup
+
 ## Testing Strategy
 
 ### Unit Testing
@@ -522,15 +705,104 @@ Using **fast-check** library for TypeScript property-based testing with minimum 
 - Communication system reliability with various message types
 - Analytics calculation accuracy with randomized data sets
 - Notification delivery reliability across different channels and conditions
+- Symptom notification routing accuracy with various geographic scenarios
+- Consultation request management workflow with multiple veterinarian responses
+- Patient management system reliability with various patient states
+- Dashboard statistics calculation accuracy with diverse consultation data
 
 ### Integration Testing
 - End-to-end testing for complete cattle owner to veterinarian workflows
 - Real-time communication testing with WebRTC and WebSocket connections
 - Payment processing integration with multiple payment providers
 - Geographic service integration with mapping and location services
+- Symptom reporting to veterinarian notification workflow testing
+- Consultation request acceptance and patient management integration testing
+- Dashboard real-time updates and statistics calculation testing
 
 ### Performance Testing
 - Veterinarian search performance with large datasets and complex filters
 - Real-time communication performance under high concurrent usage
 - Analytics calculation performance with extensive historical data
 - Notification delivery performance during high-volume alert scenarios
+- Symptom notification routing performance with large veterinarian networks
+- Dashboard statistics calculation performance with extensive consultation history
+- Patient management system performance with large patient databases
+### Property 38: Symptom Report Veterinarian Identification Accuracy
+*For any* symptom report with cattle location, all identified veterinarians should be within the specified 50km radius and have complete profile information
+**Validates: Requirements 11.1**
+
+### Property 39: Symptom Notification Content Completeness
+*For any* symptom report submission, notifications sent to veterinarians should contain all required information including cattle details, owner information, symptoms, and AI predictions
+**Validates: Requirements 11.2**
+
+### Property 40: Emergency Case Priority Notification
+*For any* symptom report marked as emergency, priority notifications should be sent to all emergency-available veterinarians with urgent status indicators
+**Validates: Requirements 11.3**
+
+### Property 41: Veterinarian Notification Display Completeness
+*For any* symptom notification received by veterinarians, the display should include cattle breed, age, symptoms, location, and emergency status
+**Validates: Requirements 11.4**
+
+### Property 42: Veterinarian Search Radius Expansion
+*For any* symptom report with no available veterinarians in 50km radius, the system should automatically expand search to 100km and notify additional veterinarians
+**Validates: Requirements 11.5**
+
+### Property 43: Consultation Request Action Options
+*For any* symptom notification received by veterinarians, the system should provide options to accept, decline, or request more information
+**Validates: Requirements 12.1**
+
+### Property 44: Consultation Request Acceptance Workflow
+*For any* veterinarian acceptance of consultation request, the system should immediately notify the cattle owner and create a consultation session
+**Validates: Requirements 12.2**
+
+### Property 45: Consultation Request Decline Workflow
+*For any* veterinarian decline of consultation request, the system should notify other nearby veterinarians and update the request status
+**Validates: Requirements 12.3**
+
+### Property 46: First Responder Assignment Logic
+*For any* consultation request with multiple veterinarian acceptances, the system should assign the consultation to the first responder and notify others that the case is taken
+**Validates: Requirements 12.4**
+
+### Property 47: Information Request Workflow
+*For any* veterinarian request for more information, the system should send a message to the cattle owner and maintain the request in pending status
+**Validates: Requirements 12.5**
+
+### Property 48: Patient List Addition Completeness
+*For any* veterinarian acceptance of consultation request, the cattle should be added to the veterinarian's patient list with complete health information
+**Validates: Requirements 13.1**
+
+### Property 49: Patient Dashboard Information Completeness
+*For any* veterinarian viewing "My Patients" dashboard, all accepted cattle should be displayed with current health status, consultation history, and treatment plans
+**Validates: Requirements 13.2**
+
+### Property 50: Patient Management Functionality
+*For any* patient in veterinarian's care, the system should allow updating treatment notes, scheduling follow-ups, and marking cases as resolved
+**Validates: Requirements 13.3**
+
+### Property 51: Patient Lifecycle Management
+*For any* patient requiring ongoing care, the cattle should remain in the patient list until the veterinarian marks the case as completed
+**Validates: Requirements 13.4**
+
+### Property 52: Patient Detail Information Completeness
+*For any* patient detail view, the system should display complete consultation history, symptom reports, AI predictions, and treatment outcomes
+**Validates: Requirements 13.5**
+
+### Property 53: Dashboard Pending Requests Counter Accuracy
+*For any* veterinarian dashboard access, the pending consultation requests counter should accurately reflect the current number of awaiting requests
+**Validates: Requirements 14.1**
+
+### Property 54: Dashboard Statistics Calculation Accuracy
+*For any* veterinarian dashboard statistics, all metrics should be correctly calculated from consultation data including total consultations, response times, and satisfaction ratings
+**Validates: Requirements 14.2**
+
+### Property 55: Real-time Counter Updates
+*For any* new consultation request arrival, the pending requests counter should update immediately and real-time notifications should be sent
+**Validates: Requirements 14.3**
+
+### Property 56: Status Change Counter Updates
+*For any* consultation request status change (accepted/declined), the pending counter should update and requests should move to appropriate status categories
+**Validates: Requirements 14.4**
+
+### Property 57: Performance Report Calculation Accuracy
+*For any* performance report generation, all statistics should be accurately calculated from consultation data including emergency response times and case resolution rates
+**Validates: Requirements 14.5**
