@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: cattle-health-frontend
+    env: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./build
+    plan: free
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://cattle-health-backend.onrender.com/api
+      - key: REACT_APP_AI_SERVICE_URL
+        value: https://cattle-health-ai.onrender.com

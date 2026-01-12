@@ -1,0 +1,72 @@
+services:
+  # Backend Service
+  - type: web
+    name: cattle-health-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "cd backend && chmod +x build.sh && ./build.sh"
+    startCommand: "cd backend && gunicorn cattle_health.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cattle-health-db
+          property: connectionString
+      - key: DJANGO_SETTINGS_MODULE
+        value: cattle_health.settings
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: "cattle-health-backend.onrender.com,localhost,127.0.0.1"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://cattle-health-frontend.onrender.com,http://localhost:3000"
+
+  # Frontend Service
+  - type: web
+    name: cattle-health-frontend
+    env: static
+    region: oregon
+    plan: free
+    buildCommand: "cd frontend && npm ci && npm run build"
+    staticPublishPath: ./frontend/build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://cattle-health-backend.onrender.com/api
+      - key: REACT_APP_AI_SERVICE_URL
+        value: https://cattle-health-ai.onrender.com
+
+  # AI Service with Roboflow
+  - type: web
+    name: cattle-health-ai
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "cd ai_service && pip install -r requirements.txt"
+    startCommand: "cd ai_service && gunicorn app_roboflow:app"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: ROBOFLOW_API_KEY
+        value: "8jChB8UhLyeJtPEO8Kqs"
+      - key: ROBOFLOW_WORKSPACE
+        value: "cattledisease-tmqqu"
+      - key: ROBOFLOW_PROJECT
+        value: "my-first-project-kills"
+      - key: ROBOFLOW_VERSION
+        value: "2"
+
+  # Database
+  - type: pserv
+    name: cattle-health-db
+    env: postgresql
+    region: oregon
+    plan: free
+    ipAllowList: []

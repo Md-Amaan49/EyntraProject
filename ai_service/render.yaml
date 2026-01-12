@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: cattle-health-ai
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app_roboflow:app"
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: ROBOFLOW_API_KEY
+        value: "8jChB8UhLyeJtPEO8Kqs"
+      - key: ROBOFLOW_WORKSPACE
+        value: "cattledisease-tmqqu"
+      - key: ROBOFLOW_PROJECT
+        value: "my-first-project-kills"
+      - key: ROBOFLOW_VERSION
+        value: "2"
