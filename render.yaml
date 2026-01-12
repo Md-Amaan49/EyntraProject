@@ -32,6 +32,8 @@ services:
     buildCommand: "cd frontend && npm ci && npm run build"
     staticPublishPath: ./frontend/build
     envVars:
+      - key: NODE_VERSION
+        value: "18.17.0"
       - key: REACT_APP_API_URL
         value: https://cattle-health-backend.onrender.com/api
       - key: REACT_APP_AI_SERVICE_URL
@@ -43,8 +45,8 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: "cd ai_service && pip install -r requirements.txt"
-    startCommand: "cd ai_service && gunicorn app_roboflow:app"
+    buildCommand: "cd ai_service && pip install --no-cache-dir -r requirements.txt"
+    startCommand: "cd ai_service && gunicorn app_roboflow:app --timeout 120"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
