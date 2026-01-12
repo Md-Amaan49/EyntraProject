@@ -25,7 +25,7 @@ import {
   CheckCircle,
   Cancel,
   Info,
-  Emergency,
+  ReportProblem,
   LocationOn,
   Schedule,
   Person,
@@ -241,7 +241,7 @@ const ConsultationRequestManager: React.FC = () => {
                     }}
                   >
                     <Box display="flex" alignItems="center" gap={0.5}>
-                      <Emergency fontSize="small" />
+                      <ReportProblem fontSize="small" />
                       <Typography variant="caption" fontWeight="bold">
                         EMERGENCY
                       </Typography>
