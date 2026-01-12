@@ -6,7 +6,7 @@ services:
     region: oregon
     plan: free
     buildCommand: "cd backend && chmod +x build.sh && ./build.sh"
-    startCommand: "cd backend && gunicorn cattle_health.wsgi:application"
+    startCommand: "cd backend && gunicorn cattle_health.wsgi:application --workers 1 --timeout 120"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
@@ -29,24 +29,28 @@ services:
   - type: web
     name: cattle-health-frontend
     env: static
-    buildCommand: "cd frontend && npm ci && npm run build"
+    buildCommand: "cd frontend && npm ci --only=production && npm run build"
     staticPublishPath: ./frontend/build
     envVars:
       - key: NODE_VERSION
         value: "20.11.0"
+      - key: CI
+        value: "false"
+      - key: GENERATE_SOURCEMAP
+        value: "false"
       - key: REACT_APP_API_URL
         value: https://cattle-health-backend.onrender.com/api
       - key: REACT_APP_AI_SERVICE_URL
         value: https://cattle-health-ai.onrender.com
 
-  # AI Service with Roboflow
+  # AI Service with Roboflow (Lightweight)
   - type: web
     name: cattle-health-ai
     env: python
     region: oregon
     plan: free
-    buildCommand: "cd ai_service && pip install --no-cache-dir -r requirements.txt"
-    startCommand: "cd ai_service && gunicorn app_roboflow:app --timeout 120"
+    buildCommand: "cd ai_service && pip install --no-cache-dir -r requirements-light.txt"
+    startCommand: "cd ai_service && gunicorn app_roboflow:app --workers 1 --timeout 300 --max-requests 100 --max-requests-jitter 10"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0

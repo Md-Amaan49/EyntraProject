@@ -258,12 +258,12 @@ const EnhancedDiseaseDetection: React.FC = () => {
 
   const handleShareReport = () => {
     // Implement share functionality
-    console.log('Sharing report...');
+    // TODO: Add share functionality
   };
 
   const handleDownloadReport = () => {
     // Implement PDF download
-    console.log('Downloading report...');
+    // TODO: Add PDF download functionality
   };
 
   const renderStepContent = () => {

@@ -177,7 +177,7 @@ const HealthAnalytics: React.FC = () => {
       <TabPanel value={tabValue} index={0}>
         <DashboardStats 
           refreshTrigger={refreshTrigger}
-          onStatsUpdate={(stats) => console.log('Stats updated:', stats)}
+          onStatsUpdate={(stats) => {/* Stats updated */}}
         />
       </TabPanel>
 

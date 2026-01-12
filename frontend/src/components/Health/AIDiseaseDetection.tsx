@@ -373,12 +373,10 @@ const AIDiseaseDetection: React.FC = () => {
                           : className.toLowerCase().trim() === 'healthy';
                         const bgColor = isHealthy ? '#4caf50' : '#f44336';
                         
-                        console.log('=== Roboflow Result ===');
-                        console.log('Class Name:', className);
-                        console.log('Is Healthy Flag:', prediction.is_healthy);
-                        console.log('Computed Is Healthy:', isHealthy);
-                        console.log('Background Color:', bgColor);
-                        console.log('Confidence:', prediction.confidenceScore);
+                        // Debug info for development
+                        if (process.env.NODE_ENV === 'development') {
+                          // Development logging only
+                        }
                         
                         return (
                           <Paper
