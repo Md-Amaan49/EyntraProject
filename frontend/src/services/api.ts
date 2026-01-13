@@ -13,7 +13,20 @@ import type {
   AnalyticsFilters
 } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || process.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 
+                   process.env.VITE_API_URL || 
+                   (process.env.NODE_ENV === 'production' 
+                     ? 'https://cattle-health-backend.onrender.com/api' 
+                     : 'http://localhost:8000/api');
+
+// Debug logging for production
+if (process.env.NODE_ENV === 'production') {
+  console.log('Production API Config:', {
+    REACT_APP_API_URL: process.env.REACT_APP_API_URL,
+    NODE_ENV: process.env.NODE_ENV,
+    API_BASE_URL: API_BASE_URL
+  });
+}
 
 // Create axios instance with default config
 const api = axios.create({
@@ -214,31 +227,51 @@ export const aiAPI = {
     images?: string[];
     cattle_metadata?: any;
   }) => {
-    const AI_SERVICE_URL = process.env.REACT_APP_AI_SERVICE_URL || process.env.VITE_AI_SERVICE_URL || 'http://localhost:5000';
+    const AI_SERVICE_URL = process.env.REACT_APP_AI_SERVICE_URL || 
+                          process.env.VITE_AI_SERVICE_URL || 
+                          (process.env.NODE_ENV === 'production' 
+                            ? 'https://cattle-health-ai.onrender.com' 
+                            : 'http://localhost:5000');
     return axios.post(`${AI_SERVICE_URL}/predict`, data);
   },
   
   comprehensiveAnalysis: (formData: FormData) => {
-    const AI_SERVICE_URL = process.env.REACT_APP_AI_SERVICE_URL || process.env.VITE_AI_SERVICE_URL || 'http://localhost:5000';
+    const AI_SERVICE_URL = process.env.REACT_APP_AI_SERVICE_URL || 
+                          process.env.VITE_AI_SERVICE_URL || 
+                          (process.env.NODE_ENV === 'production' 
+                            ? 'https://cattle-health-ai.onrender.com' 
+                            : 'http://localhost:5000');
     return axios.post(`${AI_SERVICE_URL}/comprehensive-analysis`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
   
   validateImageQuality: (formData: FormData) => {
-    const AI_SERVICE_URL = process.env.REACT_APP_AI_SERVICE_URL || process.env.VITE_AI_SERVICE_URL || 'http://localhost:5000';
+    const AI_SERVICE_URL = process.env.REACT_APP_AI_SERVICE_URL || 
+                          process.env.VITE_AI_SERVICE_URL || 
+                          (process.env.NODE_ENV === 'production' 
+                            ? 'https://cattle-health-ai.onrender.com' 
+                            : 'http://localhost:5000');
     return axios.post(`${AI_SERVICE_URL}/validate-image`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
   
   getModelInfo: () => {
-    const AI_SERVICE_URL = process.env.REACT_APP_AI_SERVICE_URL || process.env.VITE_AI_SERVICE_URL || 'http://localhost:5000';
+    const AI_SERVICE_URL = process.env.REACT_APP_AI_SERVICE_URL || 
+                          process.env.VITE_AI_SERVICE_URL || 
+                          (process.env.NODE_ENV === 'production' 
+                            ? 'https://cattle-health-ai.onrender.com' 
+                            : 'http://localhost:5000');
     return axios.get(`${AI_SERVICE_URL}/model-info`);
   },
   
   getDiseaseInfo: (diseaseName: string) => {
-    const AI_SERVICE_URL = process.env.REACT_APP_AI_SERVICE_URL || process.env.VITE_AI_SERVICE_URL || 'http://localhost:5000';
+    const AI_SERVICE_URL = process.env.REACT_APP_AI_SERVICE_URL || 
+                          process.env.VITE_AI_SERVICE_URL || 
+                          (process.env.NODE_ENV === 'production' 
+                            ? 'https://cattle-health-ai.onrender.com' 
+                            : 'http://localhost:5000');
     return axios.get(`${AI_SERVICE_URL}/disease-info/${diseaseName}`);
   },
 };

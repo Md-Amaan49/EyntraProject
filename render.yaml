@@ -39,9 +39,9 @@ services:
       - key: GENERATE_SOURCEMAP
         value: "false"
       - key: REACT_APP_API_URL
-        value: https://cattle-health-backend.onrender.com/api
+        value: "https://cattle-health-backend.onrender.com/api"
       - key: REACT_APP_AI_SERVICE_URL
-        value: https://cattle-health-ai.onrender.com
+        value: "https://cattle-health-ai.onrender.com"
 
   # AI Service with Roboflow (Lightweight)
   - type: web
