@@ -33,7 +33,6 @@ INSTALLED_APPS = [
     'users',
     'cattle',
     'health',
-    'ai_service',
     'consultations',
     'payments',
     'notifications',
